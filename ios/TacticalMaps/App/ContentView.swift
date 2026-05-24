@@ -42,7 +42,10 @@ struct ContentView: View {
                         .onTapGesture { drawingsPanelOpen = false }
                 }
 
-                if mapVM.isBrowsing && !drawingSession.isDrawing {
+                // Crosshair: always visible (except while drawing — taps go
+                // to vertex placement and the crosshair would compete with
+                // the tap-target markers).
+                if !drawingSession.isDrawing {
                     CrosshairOverlay().allowsHitTesting(false)
                 }
 
