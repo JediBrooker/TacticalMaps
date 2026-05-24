@@ -1,118 +1,209 @@
 # TacticalMaps
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![iOS](https://img.shields.io/badge/iOS-16.0%2B-blue.svg)](#)
+[![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](#)
+[![Android](https://img.shields.io/badge/Android-API%2026%2B-green.svg)](#)
+[![iOS Build](https://github.com/JediBrooker/TacticalMaps/actions/workflows/ios.yml/badge.svg)](https://github.com/JediBrooker/TacticalMaps/actions/workflows/ios.yml)
+[![Android Build](https://github.com/JediBrooker/TacticalMaps/actions/workflows/android.yml/badge.svg)](https://github.com/JediBrooker/TacticalMaps/actions/workflows/android.yml)
+
 Field-navigation prototype: tactical-style map with live MGRS, GeoPDF/calibrated-PDF
-basemaps, and waypoint/drawing overlays exported as GeoJSON. iOS (SwiftUI + MapKit)
-and Android (Kotlin + Compose + Google Maps) ship from one shared design.
+basemaps, drawing overlays exportable as GeoJSON, and fiduciary calibration for
+any PDF that lacks proper georeferencing. iOS (SwiftUI + MapKit) and Android
+(Kotlin + Compose + Google Maps) ship from one repository.
+
+<p align="center">
+  <img src="docs/screenshots/01-main-sf.png" width="320" alt="Main view (live location)">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/02-holsworthy.png" width="320" alt="Map centre in Holsworthy, Sydney">
+</p>
+
+---
+
+## What it does today
+
+### Live navigation HUD
+
+- **Live MGRS** in a tactical-green monospace at the top, spaced as
+  `56HLH 13225 37516`. Header flips between **Your Location** (GPS fix) and
+  **Map Centre** (when you pan away) automatically.
+- **WGS84 lat/lon** + **elevation** (metres above sea level) live at the
+  crosshair, fetched from Open-Meteo's Copernicus DEM (≈30 m global resolution)
+  on a 400 ms debounce so we don't hammer the network during a pan.
+- **NATO mils compass** (6400 per circle). The N marker rotates with the map
+  so it always points to true north; the 4-digit mils readout in the lower
+  half stays static. Tap to snap back to north-up.
+- **Centre-pivot rotation** — the default `MKMapView` rotation drags the
+  centre around with your fingers. Ours overrides it so the map spins in
+  place around the screen centre.
+
+### Drawing & waypoints
+
+- Drop **waypoints** with kind (camp, water, observation point, drop zone,
+  hazard) and elevation.
+- Draw **polylines, polygons, and points** — tap successive points on the
+  map, undo last vertex, finish to commit. In-progress shapes render dashed.
+- **Export everything as GeoJSON** following the [Mapbox simplestyle-spec]
+  (stroke / stroke-width / fill / fill-opacity / marker-color / marker-symbol
+  with [Maki icon] names). Opens directly in **geojson.io, GitHub gists,
+  Mapbox, Felt, Leaflet, QGIS, ArcGIS, Google Earth**.
+
+[Mapbox simplestyle-spec]: https://github.com/mapbox/simplestyle-spec
+[Maki icon]: https://github.com/mapbox/maki
+
+### GeoPDF basemap
+
+- Import any **GeoPDF** via the Files app. The PDF replaces the satellite
+  basemap and stays anchored to its true geographic bounds when you pan / zoom
+  / rotate.
+- **LGIDict parser** handles the OGC GeoPDF format used by ADF, AUSLIG, USGS,
+  and most government topo PDFs:
+  - Multi-entry LGIDicts (picks the one with `/Description (Layers)`)
+  - PDF-string-encoded reals (e.g. `(135.83)` instead of `135.83`)
+  - Projections: **LL** (geographic), **UT** (UTM), **TC** (Transverse
+    Mercator routed through UTM when the central meridian matches a zone)
+- **Adobe Geospatial fallback** for newer PDFs that use `/VP/Measure` +
+  `/GPTS` instead of LGIDict.
+- **Fiduciary calibration UI** for any PDF without proper metadata — tap
+  3+ known features on the PDF, enter their MGRS, and `AffineFitter` solves
+  a least-squares affine to re-derive bounds. Shows RMS residual in metres
+  so you know how trustworthy the fit is.
+
+### Search
+
+- **Place name / address** via `MKLocalSearch`, biased toward the current
+  camera area.
+- **Full MGRS** — type `56HLH 13225 37516`, jump straight there.
+- **Partial grid** — type just **4 / 6 / 8 / 10 figures** (e.g. `1885`) and
+  we resolve against your current GZD + 100km square prefix, then drop
+  you at the centre of the implied square (1 km / 100 m / 10 m / 1 m
+  precision respectively).
+- Crash-safe: regex pre-validates MGRS shape before calling NGA's parser
+  (which used to `fatalError` on partial input).
+
+---
 
 ## Repository layout
 
 ```
 .
-├── ios/         # SwiftUI app, XcodeGen-driven
-├── android/     # Kotlin/Compose app, Gradle
-├── samples/     # Test PDF (Holsworthy North 1:25,000)
-└── docs/        # ARCHITECTURE.md — shared abstractions
+├── ios/                            SwiftUI app, XcodeGen-driven
+│   ├── project.yml                 → .xcodeproj generation
+│   ├── TacticalMaps/               app source
+│   └── Vendor/mgrs-ios/            vendored fork with a 4-line Snyder UTM patch
+├── android/                        Kotlin + Compose, Gradle
+├── docs/
+│   ├── ARCHITECTURE.md             shared design notes
+│   ├── PRIVACY_POLICY.md           public privacy policy (host this)
+│   ├── APPSTORE_CHECKLIST.md       submission checklist
+│   └── screenshots/                README hero images
+├── scripts/
+│   └── generate_icon.swift         re-generate the 1024×1024 App Store icon
+└── samples/                        (intentionally empty in the public repo)
 ```
-
-## Prototype scope (what's wired up today)
-
-| Feature                                          | iOS                        | Android                   |
-|--------------------------------------------------|---------------------------|---------------------------|
-| Apple/Google satellite fallback basemap          | ✅ MapKit                  | ✅ Google Maps Compose    |
-| Live user location                               | ✅ CoreLocation           | ✅ FusedLocationProvider  |
-| MGRS header                                      | ✅ NGA mgrs-ios           | ✅ NGA mgrs (Java)        |
-| Crosshair browse mode                            | ✅                        | ✅                       |
-| Centre-on-location button                        | ✅                        | ✅                       |
-| Waypoint model + disk persistence + demo seeds  | ✅                        | ✅                       |
-| GeoJSON export                                   | ✅ (preview screen)       | ✅ (no UI hook yet)       |
-| MapSource / Fiduciary / Affine calibration code  | ✅ (math, stubs)          | ✅ (math, stubs)          |
-| GeoPDF tag parsing                               | ⏳ stubbed                | ⏳ stubbed                |
-| Fiduciary placement UI                           | ⏳ stubbed                | ⏳ stubbed                |
-| Drawing layer                                    | ⏳ stubbed (toolbar btn)  | ⏳ stubbed (toolbar btn)  |
-| GDAL pipeline for raster tiles                   | ❌ future                 | ❌ future                 |
 
 ---
 
-## iOS — first-time setup
-
-Xcode is required (Command Line Tools are not enough — SwiftUI previews and the
-iOS simulator both need the full IDE).
+## iOS — build & run
 
 ```bash
-# 1. Install Xcode from the App Store, then accept the license & components.
+# 1. Tools (one-off)
+brew install xcodegen
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 xcodebuild -runFirstLaunch
 
-# 2. Install XcodeGen (a one-time tool that generates .xcodeproj from project.yml).
-brew install xcodegen
-
-# 3. Generate the Xcode project.
+# 2. Generate the Xcode project
 cd ios
 xcodegen generate
 
-# 4. Open it.
+# 3. Open
 open TacticalMaps.xcodeproj
 ```
 
-First Xcode build will resolve the `mgrs-ios` Swift Package (NGA's MGRS library).
-Wait for the package graph to finish before pressing ▶.
+First build resolves Swift packages (mgrs is vendored, but pure-Swift deps
+still download). Pick an iPhone simulator and press ▶.
 
-### Running in the iOS Simulator
-- Pick an iPhone 15 / iPad Pro target.
-- Launch ▶. The app will prompt for location — grant **While Using**.
-- In the Simulator menu, **Features › Location › Custom Location…** to drop a
-  pin somewhere with a real MGRS grid (e.g. Holsworthy NSW: -33.99, 150.94).
+**Generate the App Store icon** (if you tweak the design in
+`scripts/generate_icon.swift`):
 
-### Importing the demo GeoPDF
-- In the Simulator, drag `samples/Holsworthy_North_1-25000.pdf` onto the device
-  window (it lands in Files).
-- Tap the **Import PDF Map** button in TacticalMaps and pick it.
-- (The PDF will load as a placeholder — calibration UI is stubbed pending the
-  fiduciary-placement work in `docs/ARCHITECTURE.md`.)
+```bash
+swift scripts/generate_icon.swift
+```
 
 ---
 
-## Android — first-time setup
-
-Android Studio is required. The bundled JBR satisfies the Java requirement; you
-don't need a separate JDK.
+## Android — build & run
 
 ```bash
-# 1. Launch Android Studio once and run the first-launch SDK wizard.
-open -a "Android Studio"
-# - Accept the standard SDK + emulator components.
-# - When prompted, create an AVD (Pixel 7, API 34).
+# 1. Tools (one-off)
+brew install --cask android-studio android-commandlinetools
+open -a "Android Studio"   # Run the first-launch SDK wizard + create an AVD
 
-# 2. Get a Google Maps API key.
-# https://developers.google.com/maps/documentation/android-sdk/get-api-key
-# Then add it to ~/.gradle/gradle.properties (preferred, kept out of git):
-#   MAPS_API_KEY=AIza…
-# Or set it per-project in android/local.properties.
+# 2. Get a Google Maps API key (free)
+#    https://developers.google.com/maps/documentation/android-sdk/get-api-key
+#    Add it to ~/.gradle/gradle.properties (kept out of the repo):
+#       MAPS_API_KEY=AIza…
 
-# 3. Open the project.
+# 3. Open in Studio
 open -a "Android Studio" android
 ```
 
-Studio will sync Gradle on first open — it downloads the wrapper jar, Android
-build tools, Compose BOM, Maps Compose, and NGA `mgrs`. Then **Run ▶** on your
-AVD or a connected device.
-
-Without a Maps API key the map will render as a grey grid with a watermark, but
-all other UI (MGRS header, crosshair, telemetry, waypoints) still works.
+Without an API key the map will render as a grey grid + watermark, but every
+other UI element still works.
 
 ---
 
-## Verifying with the simulator/emulator
+## Architecture overview
 
-1. Launch the app, grant location.
-2. Confirm the MGRS header (top, monospaced green) shows your current grid.
-3. Pan the map — the crosshair should appear and the header label should flip to
-   **MGRS (Map Centre)**, updating live as you drag.
-4. Tap **Centre on My Location** — crosshair clears, header returns to **Your Location**.
-5. Open **Waypoints** (iOS): a demo set is seeded. Tap one to fly to it.
-6. iOS: open **Export GeoJSON** to preview the FeatureCollection.
+The single most important architectural choice: **all overlays (waypoints,
+drawings, fiduciaries) are stored in WGS84**. MGRS is presentation-only,
+computed on the fly via NGA's `mgrs-ios`. This means swapping basemaps
+(satellite ↔ GeoPDF ↔ calibrated PDF) never requires re-projecting overlays.
+
+Full design + math in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the shared model, fiduciary
-calibration math, and the planned GDAL ingest pipeline.
+## Roadmap
+
+- **Wave 2 projections** — Lambert Conformal Conic (French IGN, Canadian
+  NRCan, US state plane), arbitrary-central-meridian TM (UK OSGB36, NZ NZTM),
+  non-WGS84 datum shifts.
+- **Persistent fiduciaries per PDF** — currently in-memory only; needs a
+  `Calibration/CalibrationStore.swift`.
+- **Route logging** — the iOS `UIBackgroundModes: [location]` declaration is
+  in place; logger UI + GPX export TBD.
+- **iCloud sync** for waypoints + drawings.
+- **Android feature parity** — the Android edition builds + runs but only the
+  basic HUD is wired; drawing / search / GeoPDF still iOS-only.
+
+---
+
+## App Store status
+
+The iOS build is App-Store-ready in terms of assets:
+
+- 1024×1024 icon, launch screen, acknowledgements view all in place
+- Privacy policy at [`docs/PRIVACY_POLICY.md`](docs/PRIVACY_POLICY.md)
+- Step-by-step submission checklist at
+  [`docs/APPSTORE_CHECKLIST.md`](docs/APPSTORE_CHECKLIST.md)
+
+It has not been submitted yet — if you do, see the checklist for the
+Apple-side steps (Developer Program enrolment, name reservation, screenshots,
+TestFlight).
+
+---
+
+## Privacy
+
+We collect **nothing**. No accounts, no telemetry, no third-party SDKs, no
+advertising IDs. Only outbound HTTPS calls are to Apple's Maps service (basemap
+tiles + search) and Open-Meteo (elevation). Full disclosure in
+[`docs/PRIVACY_POLICY.md`](docs/PRIVACY_POLICY.md).
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE). Includes vendored NGA `mgrs-ios` (MIT)
+with a small Snyder UTM patch for Xcode 26 compatibility.

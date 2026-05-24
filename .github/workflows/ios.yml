@@ -1,0 +1,82 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build for iPhone Simulator
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Xcode + Simulator runtime info
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: /tmp/spm-cache
+          key: spm-${{ runner.os }}-${{ hashFiles('ios/project.yml') }}
+          restore-keys: |
+            spm-${{ runner.os }}-
+
+      - name: Resolve SwiftPM packages
+        working-directory: ios
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project TacticalMaps.xcodeproj \
+            -scheme TacticalMaps \
+            -clonedSourcePackagesDirPath /tmp/spm-cache
+
+      - name: Build (Debug, iPhone Simulator)
+        working-directory: ios
+        run: |
+          # Pick whichever iPhone simulator is available on the runner.
+          DEST=$(xcrun simctl list devices available | grep -E 'iPhone (15|16|17) Pro \(' | head -n1 | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/')
+          if [ -z "$DEST" ]; then
+            echo "::warning::No iPhone 15/16/17 Pro simulator found; using first available iPhone"
+            DEST=$(xcrun simctl list devices available | grep -E 'iPhone .* \([A-F0-9-]+\)' | head -n1 | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/')
+          fi
+          echo "Building for simulator $DEST"
+          xcodebuild \
+            -project TacticalMaps.xcodeproj \
+            -scheme TacticalMaps \
+            -destination "id=$DEST" \
+            -clonedSourcePackagesDirPath /tmp/spm-cache \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build | xcbeautify --renderer github-actions || (cat -; exit 1)
+
+      - name: Upload .app artefact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TacticalMaps-iOS-debug
+          path: ios/build/Build/Products/Debug-iphonesimulator/TacticalMaps.app
+          retention-days: 14
