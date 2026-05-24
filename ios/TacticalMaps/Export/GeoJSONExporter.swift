@@ -86,6 +86,10 @@ enum GeoJSONExporter {
             "tacticalmaps:kind":       shape.kind.rawValue,
             "tacticalmaps:created_at": ISO8601DateFormatter().string(from: shape.createdAt)
         ]
+        if let task = shape.tacticalTask {
+            props["tacticalmaps:task"]              = task.rawValue
+            props["tacticalmaps:task_abbreviation"] = task.abbreviation
+        }
         if let n = shape.name  { props["name"]        = n }
         if let n = shape.notes { props["description"] = n }
 
