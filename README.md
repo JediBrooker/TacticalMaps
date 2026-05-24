@@ -13,9 +13,9 @@ any PDF that lacks proper georeferencing. iOS (SwiftUI + MapKit) and Android
 (Kotlin + Compose + Google Maps) ship from one repository.
 
 <p align="center">
-  <img src="docs/screenshots/01-main-sf.png" width="260" alt="Main view (live location)">
+  <img src="docs/screenshots/01-main-sf.png" width="260" alt="Main view (live location, satellite)">
   &nbsp;
-  <img src="docs/screenshots/03-hamburger-menu.png" width="260" alt="Hamburger menu">
+  <img src="docs/screenshots/02-pdf-basemap.png" width="260" alt="USGS US Topo PDF rendered as basemap">
   &nbsp;
   <img src="docs/screenshots/06-drawing-mode.png" width="260" alt="Live drawing mode">
 </p>
@@ -24,11 +24,11 @@ any PDF that lacks proper georeferencing. iOS (SwiftUI + MapKit) and Android
 <summary>More screenshots</summary>
 
 <p align="center">
-  <img src="docs/screenshots/02-holsworthy.png" width="260" alt="Map centre at Holsworthy">
+  <img src="docs/screenshots/03-hamburger-menu.png" width="260" alt="Hamburger menu">
   &nbsp;
   <img src="docs/screenshots/05-drawings-panel.png" width="260" alt="Drawings panel">
   &nbsp;
-  <img src="docs/screenshots/07-layers.png" width="260" alt="Layers sheet">
+  <img src="docs/screenshots/07-layers.png" width="260" alt="Layers sheet (USGS PDF loaded)">
 </p>
 
 <p align="center">
@@ -38,6 +38,10 @@ any PDF that lacks proper georeferencing. iOS (SwiftUI + MapKit) and Android
 </p>
 
 </details>
+
+The basemap screenshot (£2) is the **USGS San Francisco North** 1:24,000 US Topo
+quadrangle (public domain) rendered live over the satellite. Run
+`scripts/fetch_samples.sh` to drop the same PDF into `samples/` for testing.
 
 ---
 

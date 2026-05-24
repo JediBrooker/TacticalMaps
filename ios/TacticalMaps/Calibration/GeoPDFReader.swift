@@ -147,9 +147,16 @@ enum GeoPDFReader {
                 if CGPDFArrayGetNumber(bbox, i, &n) { nums[i] = Double(n) } else { ok = false; break }
             }
             if ok {
-                crop = CGRect(x: nums[0], y: nums[1],
-                              width:  nums[2] - nums[0],
-                              height: nums[3] - nums[1])
+                // Normalise: USGS US Topo (and some other Adobe Geospatial
+                // encoders) write /BBox as [llx, lly, urx, ury] where lly can
+                // be GREATER than ury — producing a negative-height rect
+                // through naive (nums[3] - nums[1]). Take min/max so the rect
+                // is always well-formed.
+                let x0 = min(nums[0], nums[2])
+                let x1 = max(nums[0], nums[2])
+                let y0 = min(nums[1], nums[3])
+                let y1 = max(nums[1], nums[3])
+                crop = CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
             }
         }
 

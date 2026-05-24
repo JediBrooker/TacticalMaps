@@ -31,6 +31,9 @@ android/.cxx/
 **/*.api-key
 **/maps.key
 
+# Sample / test PDFs — fetched on demand via scripts/fetch_samples.sh
+samples/*.pdf
+
 # Build artifacts
 *.log
 *.hprof
