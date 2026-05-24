@@ -451,6 +451,21 @@ struct MapContainerView: UIViewRepresentable {
 
         func mapView(_ mv: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             if let wp = annotation as? WaypointAnnotation {
+                // Military kinds get a custom APP-6 image so the frame /
+                // function / echelon are drawn properly. Everything else
+                // (generic waypoint, tactical control measures) keeps the
+                // teardrop MKMarker pin with an SF Symbol glyph.
+                if let spec = wp.waypoint.kind.militarySpec {
+                    let id = "waypoint-military"
+                    let view = mv.dequeueReusableAnnotationView(withIdentifier: id)
+                        ?? MKAnnotationView(annotation: wp, reuseIdentifier: id)
+                    view.annotation = wp
+                    view.image = MilitarySymbolRenderer.image(for: spec)
+                    // Anchor centre of the frame on the coordinate.
+                    view.centerOffset = .zero
+                    view.canShowCallout = true
+                    return view
+                }
                 let id = "waypoint"
                 let view = mv.dequeueReusableAnnotationView(withIdentifier: id) as? MKMarkerAnnotationView
                     ?? MKMarkerAnnotationView(annotation: wp, reuseIdentifier: id)

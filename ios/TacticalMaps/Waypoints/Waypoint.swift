@@ -58,13 +58,13 @@ struct Waypoint: Identifiable, Codable, Hashable {
 /// All waypoint kinds, grouped by category. Order within each category is the
 /// order shown in the picker.
 enum WaypointKind: String, Codable, CaseIterable, Hashable {
-    // MARK: Generic field-craft markers
-    case generic, camp, water, observation, dropZone, hazard
+    // MARK: Generic
+    case generic
 
-    // MARK: Friendly units (APP-6 blue rectangle, echelon shown above)
+    // MARK: Friendly Infantry (APP-6 friend frame: blue rectangle, infantry X)
     case friendlySection, friendlyPlatoon, friendlyCompany, friendlyRegiment, friendlyBrigade
 
-    // MARK: Enemy units (APP-6 red diamond, echelon shown above)
+    // MARK: Enemy Infantry (APP-6 hostile frame: red diamond, infantry X)
     case enemySection, enemyPlatoon, enemyCompany, enemyRegiment, enemyBrigade
 
     // MARK: Tactical control measures (black)
@@ -81,23 +81,18 @@ enum WaypointKind: String, Codable, CaseIterable, Hashable {
     var displayName: String {
         switch self {
         case .generic:           return "Waypoint"
-        case .camp:              return "Camp"
-        case .water:             return "Water Source"
-        case .observation:       return "Observation Point"
-        case .dropZone:          return "Drop Zone"
-        case .hazard:            return "Hazard"
 
-        case .friendlySection:   return "Friendly Section"
-        case .friendlyPlatoon:   return "Friendly Platoon"
-        case .friendlyCompany:   return "Friendly Company"
-        case .friendlyRegiment:  return "Friendly Regiment"
-        case .friendlyBrigade:   return "Friendly Brigade"
+        case .friendlySection:   return "Friendly Infantry — Section"
+        case .friendlyPlatoon:   return "Friendly Infantry — Platoon"
+        case .friendlyCompany:   return "Friendly Infantry — Company"
+        case .friendlyRegiment:  return "Friendly Infantry — Regiment"
+        case .friendlyBrigade:   return "Friendly Infantry — Brigade"
 
-        case .enemySection:      return "Enemy Section"
-        case .enemyPlatoon:      return "Enemy Platoon"
-        case .enemyCompany:      return "Enemy Company"
-        case .enemyRegiment:     return "Enemy Regiment"
-        case .enemyBrigade:      return "Enemy Brigade"
+        case .enemySection:      return "Enemy Infantry — Section"
+        case .enemyPlatoon:      return "Enemy Infantry — Platoon"
+        case .enemyCompany:      return "Enemy Infantry — Company"
+        case .enemyRegiment:     return "Enemy Infantry — Regiment"
+        case .enemyBrigade:      return "Enemy Infantry — Brigade"
 
         case .axisOfAssault:     return "Axis of Assault"
         case .supportByFire:     return "Support by Fire (SBF)"
@@ -111,7 +106,7 @@ enum WaypointKind: String, Codable, CaseIterable, Hashable {
 
     var category: WaypointCategory {
         switch self {
-        case .generic, .camp, .water, .observation, .dropZone, .hazard:
+        case .generic:
             return .field
         case .friendlySection, .friendlyPlatoon, .friendlyCompany,
              .friendlyRegiment, .friendlyBrigade:
@@ -125,27 +120,41 @@ enum WaypointKind: String, Codable, CaseIterable, Hashable {
         }
     }
 
-    /// SF Symbol used as the marker glyph. Pin colour is `tint`.
+    /// Returns the APP-6 symbol spec for friendly/enemy unit kinds, or nil
+    /// for kinds that aren't drawn as a NATO unit symbol.
+    var militarySpec: MilitarySymbolSpec? {
+        switch self {
+        case .friendlySection:   return .init(affiliation: .friend,  echelon: .section)
+        case .friendlyPlatoon:   return .init(affiliation: .friend,  echelon: .platoon)
+        case .friendlyCompany:   return .init(affiliation: .friend,  echelon: .company)
+        case .friendlyRegiment:  return .init(affiliation: .friend,  echelon: .regiment)
+        case .friendlyBrigade:   return .init(affiliation: .friend,  echelon: .brigade)
+
+        case .enemySection:      return .init(affiliation: .hostile, echelon: .section)
+        case .enemyPlatoon:      return .init(affiliation: .hostile, echelon: .platoon)
+        case .enemyCompany:      return .init(affiliation: .hostile, echelon: .company)
+        case .enemyRegiment:     return .init(affiliation: .hostile, echelon: .regiment)
+        case .enemyBrigade:      return .init(affiliation: .hostile, echelon: .brigade)
+
+        default: return nil
+        }
+    }
+
+    /// SF Symbol used as the fallback marker glyph for kinds that don't have
+    /// a custom APP-6 drawing (generic waypoint, tactical control measures).
     var sfSymbol: String {
         switch self {
         case .generic:           return "mappin"
-        case .camp:              return "triangle.fill"
-        case .water:             return "drop.fill"
-        case .observation:       return "binoculars.fill"
-        case .dropZone:          return "square.dashed"
-        case .hazard:            return "exclamationmark.triangle.fill"
 
-        case .friendlySection:   return "1.circle.fill"
-        case .friendlyPlatoon:   return "2.circle.fill"
-        case .friendlyCompany:   return "rectangle.fill"
-        case .friendlyRegiment:  return "rectangle.stack.fill"
-        case .friendlyBrigade:   return "xmark.shield.fill"
-
-        case .enemySection:      return "1.circle.fill"
-        case .enemyPlatoon:      return "2.circle.fill"
-        case .enemyCompany:      return "diamond.fill"
-        case .enemyRegiment:     return "diamond.tophalf.filled"
-        case .enemyBrigade:      return "xmark.diamond.fill"
+        // The military kinds use militarySpec for their real symbology,
+        // but we keep an SF Symbol fallback for any code path that still
+        // calls into this getter (the MapKit annotation now bypasses it).
+        case .friendlySection, .friendlyPlatoon, .friendlyCompany,
+             .friendlyRegiment, .friendlyBrigade:
+            return "shield.fill"
+        case .enemySection, .enemyPlatoon, .enemyCompany,
+             .enemyRegiment, .enemyBrigade:
+            return "xmark.shield.fill"
 
         case .axisOfAssault:     return "arrow.up.right.circle.fill"
         case .supportByFire:     return "scope"
@@ -157,27 +166,13 @@ enum WaypointKind: String, Codable, CaseIterable, Hashable {
         }
     }
 
-    /// Marker pin colour.
+    /// Marker pin tint (used only by kinds without a `militarySpec`).
     var tint: Color {
         switch category {
-        case .field:    return fieldTint
-        case .friendly: return .blue
-        case .enemy:    return .red
+        case .field:    return .yellow
+        case .friendly: return .blue   // unused once militarySpec is wired
+        case .enemy:    return .red    // unused once militarySpec is wired
         case .tactical: return .black
-        }
-    }
-
-    /// Per-kind override for the generic field markers, where each subtype
-    /// has its own established colour convention.
-    private var fieldTint: Color {
-        switch self {
-        case .generic:     return .yellow
-        case .camp:        return .green
-        case .water:       return .blue
-        case .observation: return .orange
-        case .dropZone:    return .yellow
-        case .hazard:      return .red
-        default:           return .yellow
         }
     }
 }
@@ -188,8 +183,8 @@ enum WaypointCategory: String, CaseIterable, Hashable {
     var displayName: String {
         switch self {
         case .field:    return "Field Markers"
-        case .friendly: return "Friendly Units (Blue)"
-        case .enemy:    return "Enemy Units (Red)"
+        case .friendly: return "Friendly Units (NATO APP-6)"
+        case .enemy:    return "Enemy Units (NATO APP-6)"
         case .tactical: return "Tactical Control Measures"
         }
     }

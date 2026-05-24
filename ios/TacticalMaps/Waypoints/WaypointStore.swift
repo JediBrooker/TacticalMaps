@@ -52,13 +52,16 @@ final class WaypointStore: ObservableObject {
         }
     }
 
-    /// Seed the mockup waypoints so a first run looks like the design.
+    /// Seed the demo waypoints so a first run shows real APP-6 symbology
+    /// rather than an empty map. Two friendly platoons opposing two enemy
+    /// sections, plus a tactical control measure.
     private func seedDemoIfEmpty() {
         waypoints = [
-            Waypoint(name: "Camp Alpha",        latitude: 37.7820, longitude: -122.4310, elevation: 2345, kind: .camp),
-            Waypoint(name: "Water Source",      latitude: 37.7750, longitude: -122.4250, elevation: 1856, kind: .water),
-            Waypoint(name: "Observation Point", latitude: 37.7790, longitude: -122.4080, elevation: 2120, kind: .observation),
-            Waypoint(name: "Drop Zone",         latitude: 37.7730, longitude: -122.4140, elevation: 1620, kind: .dropZone)
+            Waypoint(name: "1 Pl, A Coy",  latitude: 37.7820, longitude: -122.4310, elevation: 2345, kind: .friendlyPlatoon),
+            Waypoint(name: "2 Pl, A Coy",  latitude: 37.7750, longitude: -122.4250, elevation: 1856, kind: .friendlyPlatoon),
+            Waypoint(name: "En Sect (S)",  latitude: 37.7790, longitude: -122.4080, elevation: 2120, kind: .enemySection),
+            Waypoint(name: "En Sect (N)",  latitude: 37.7730, longitude: -122.4140, elevation: 1620, kind: .enemySection),
+            Waypoint(name: "FUP CHARLIE",  latitude: 37.7770, longitude: -122.4200, elevation: 1500, kind: .formUpPoint)
         ]
         persist()
     }

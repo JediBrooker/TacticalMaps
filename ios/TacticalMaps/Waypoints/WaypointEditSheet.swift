@@ -44,10 +44,11 @@ struct WaypointEditSheet: View {
                         WaypointKindPicker(selection: $kind)
                     } label: {
                         HStack {
-                            Image(systemName: kind.sfSymbol)
-                                .foregroundStyle(kind.tint)
-                                .frame(width: 26)
+                            WaypointKindIcon(kind: kind, size: 32)
+                                .frame(width: 36)
                             Text(kind.displayName)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.85)
                             Spacer()
                             Text(kind.category.displayName)
                                 .font(.caption2)
@@ -159,11 +160,12 @@ private struct WaypointKindPicker: View {
                             dismiss()
                         } label: {
                             HStack {
-                                Image(systemName: kind.sfSymbol)
-                                    .foregroundStyle(kind.tint)
-                                    .frame(width: 28)
+                                WaypointKindIcon(kind: kind, size: 36)
+                                    .frame(width: 40)
                                 Text(kind.displayName)
                                     .foregroundStyle(.primary)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.85)
                                 Spacer()
                                 if kind == selection {
                                     Image(systemName: "checkmark")

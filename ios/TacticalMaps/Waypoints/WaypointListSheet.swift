@@ -74,9 +74,8 @@ struct WaypointListSheet: View {
     @ViewBuilder
     private func row(for wp: Waypoint) -> some View {
         HStack {
-            Image(systemName: wp.kind.sfSymbol)
-                .foregroundStyle(wp.kind.tint)
-                .frame(width: 28)
+            WaypointKindIcon(kind: wp.kind, size: 32)
+                .frame(width: 36)
             VStack(alignment: .leading, spacing: 2) {
                 Text(wp.name).foregroundStyle(.primary)
                 HStack(spacing: 6) {

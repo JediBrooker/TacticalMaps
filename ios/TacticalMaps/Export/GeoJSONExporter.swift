@@ -129,23 +129,17 @@ enum GeoJSONExporter {
 
     private static func markerColor(for kind: WaypointKind) -> String {
         switch kind {
-        // Field markers
         case .generic:     return "#FFD700"  // yellow
-        case .camp:        return "#3CB371"  // green
-        case .water:       return "#1E90FF"  // blue
-        case .observation: return "#FF8C00"  // orange
-        case .dropZone:    return "#FFD700"  // yellow
-        case .hazard:      return "#DC143C"  // crimson
 
-        // Friendly (APP-6 blue)
+        // Friendly (APP-6 friend medium-intensity cyan)
         case .friendlySection, .friendlyPlatoon, .friendlyCompany,
              .friendlyRegiment, .friendlyBrigade:
-            return "#1F75FE"
+            return "#80E0FF"
 
-        // Enemy (APP-6 red)
+        // Enemy (APP-6 hostile medium-intensity red)
         case .enemySection, .enemyPlatoon, .enemyCompany,
              .enemyRegiment, .enemyBrigade:
-            return "#E03434"
+            return "#FF8080"
 
         // Tactical control measures (black)
         case .axisOfAssault, .supportByFire, .attackByFire,
@@ -160,29 +154,23 @@ enum GeoJSONExporter {
         // the closest existing symbol so the marker renders in third-party
         // tools instead of falling back to the default pin.
         switch kind {
-        // Field markers
-        case .generic:     return "marker"
-        case .camp:        return "campsite"
-        case .water:       return "drinking-water"
-        case .observation: return "observation-tower"
-        case .dropZone:    return "airport"
-        case .hazard:      return "danger"
+        case .generic:          return "marker"
 
-        // Friendly
-        case .friendlySection:  return "circle-stroked"
-        case .friendlyPlatoon:  return "circle"
+        // Friendly infantry — echelon implied by name
+        case .friendlySection:  return "square"
+        case .friendlyPlatoon:  return "square"
         case .friendlyCompany:  return "square"
-        case .friendlyRegiment: return "square-stroked"
-        case .friendlyBrigade:  return "cross"
+        case .friendlyRegiment: return "square"
+        case .friendlyBrigade:  return "square"
 
-        // Enemy
-        case .enemySection:     return "circle-stroked"
-        case .enemyPlatoon:     return "circle"
-        case .enemyCompany:     return "square"
+        // Enemy infantry — echelon implied by name
+        case .enemySection:     return "square-stroked"
+        case .enemyPlatoon:     return "square-stroked"
+        case .enemyCompany:     return "square-stroked"
         case .enemyRegiment:    return "square-stroked"
-        case .enemyBrigade:     return "cross"
+        case .enemyBrigade:     return "square-stroked"
 
-        // Tactical
+        // Tactical control measures
         case .axisOfAssault:    return "arrow"
         case .supportByFire:    return "scope"
         case .attackByFire:     return "fire-station"
