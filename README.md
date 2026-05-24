@@ -13,10 +13,31 @@ any PDF that lacks proper georeferencing. iOS (SwiftUI + MapKit) and Android
 (Kotlin + Compose + Google Maps) ship from one repository.
 
 <p align="center">
-  <img src="docs/screenshots/01-main-sf.png" width="320" alt="Main view (live location)">
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/02-holsworthy.png" width="320" alt="Map centre in Holsworthy, Sydney">
+  <img src="docs/screenshots/01-main-sf.png" width="260" alt="Main view (live location)">
+  &nbsp;
+  <img src="docs/screenshots/03-hamburger-menu.png" width="260" alt="Hamburger menu">
+  &nbsp;
+  <img src="docs/screenshots/06-drawing-mode.png" width="260" alt="Live drawing mode">
 </p>
+
+<details>
+<summary>More screenshots</summary>
+
+<p align="center">
+  <img src="docs/screenshots/02-holsworthy.png" width="260" alt="Map centre at Holsworthy">
+  &nbsp;
+  <img src="docs/screenshots/05-drawings-panel.png" width="260" alt="Drawings panel">
+  &nbsp;
+  <img src="docs/screenshots/07-layers.png" width="260" alt="Layers sheet">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/08-search.png" width="260" alt="Search sheet">
+  &nbsp;
+  <img src="docs/screenshots/04-about-credits.png" width="260" alt="About & Credits">
+</p>
+
+</details>
 
 ---
 
