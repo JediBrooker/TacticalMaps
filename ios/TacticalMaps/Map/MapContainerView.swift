@@ -245,7 +245,7 @@ struct MapContainerView: UIViewRepresentable {
             mapVM.mapCameraDidChange(heading: mv.camera.heading)
             mapVM.currentMetresPerPoint = metresPerPoint(in: mv)
             pdfImageView?.updateFrame(in: mv)
-            applyZoomScaleToControlMeasures(in: mv)
+            publishOverlayState(in: mv)
         }
 
         /// Fires on every render frame during pan/zoom/rotate — the only delegate
@@ -255,29 +255,35 @@ struct MapContainerView: UIViewRepresentable {
             mapVM.mapCameraDidChange(heading: mv.camera.heading)
             mapVM.currentMetresPerPoint = metresPerPoint(in: mv)
             pdfImageView?.updateFrame(in: mv)
-            applyZoomScaleToControlMeasures(in: mv)
+            publishOverlayState(in: mv)
         }
 
-        /// Re-apply the zoom-derived scale to every tactical-symbol
-        /// annotation view. Called on every camera change so the
-        /// symbols track the map's current zoom level — i.e. the
-        /// symbol represents a fixed *geographic* footprint, not a
-        /// fixed pixel size.
-        ///
-        /// The base scale comes from `metresPerPoint` at the current
-        /// camera distance: when the user zooms in (small metres-per-
-        /// point), the scale goes up; when they zoom out (large
-        /// metres-per-point), it goes down. The waypoint's own
-        /// `scale` field multiplies this so the user can still dial
-        /// the absolute size up or down for any individual symbol.
-        private func applyZoomScaleToControlMeasures(in mv: MKMapView) {
-            let scaleFactor = currentZoomScaleFactor(for: mv)
-            for ann in mv.annotations.compactMap({ $0 as? WaypointAnnotation }) {
-                guard case .controlMeasure = ann.waypoint.kind,
-                      let view = mv.view(for: ann) as? LockedSizeAnnotationView
-                else { continue }
-                let s = CGFloat(ann.waypoint.scale) * scaleFactor
-                view.applyZoomScale(s)
+        /// Cached waypoint list captured on each `refresh()` so the
+        /// camera-change callbacks can recompute screen positions
+        /// without going back through updateUIView.
+        private var currentWaypoints: [Waypoint] = []
+
+        /// Republish per-waypoint screen positions + the current zoom
+        /// scale factor for `TacticalSymbolOverlay` to consume. Runs
+        /// on every camera change so the SwiftUI overlay's symbols
+        /// track the map as it pans and zooms.
+        private func publishOverlayState(in mv: MKMapView) {
+            var positions: [UUID: CGPoint] = [:]
+            for wp in currentWaypoints {
+                guard case .controlMeasure = wp.kind else { continue }
+                positions[wp.id] = mv.convert(wp.coordinate, toPointTo: mv)
+            }
+            mapVM.waypointScreenPositions = positions
+            mapVM.zoomScaleFactor = currentZoomScaleFactor(for: mv)
+
+            // Install / refresh the screen-point → coordinate bridge so
+            // the overlay's drag handler can turn a finger position
+            // back into a coordinate when persisting the move.
+            mapVM.screenToCoordinate = { [weak mv] pt in
+                guard let mv else {
+                    return CLLocationCoordinate2D(latitude: 0, longitude: 0)
+                }
+                return mv.convert(pt, toCoordinateFrom: mv)
             }
         }
 
@@ -541,6 +547,15 @@ struct MapContainerView: UIViewRepresentable {
                 session:   session,
                 visibility: visibility
             )
+            // Always cache so the per-frame overlay-position publisher
+            // has the latest list, even when the fingerprint is the
+            // same and we early-out below.
+            currentWaypoints = waypoints
+            // Also republish so SwiftUI overlay catches new waypoints
+            // / removals immediately (camera-change publisher won't
+            // fire until the next interaction).
+            publishOverlayState(in: mv)
+
             if fingerprint == lastRefreshFingerprint { return }
             lastRefreshFingerprint = fingerprint
 
@@ -565,9 +580,17 @@ struct MapContainerView: UIViewRepresentable {
             styleByOverlay.removeAll()
             inProgressOverlayIDs.removeAll()
 
-            // Add waypoints if visible.
+            // Add waypoints if visible. Tactical control measures are
+            // rendered by `TacticalSymbolOverlay` (a SwiftUI overlay
+            // above the map) — keep them out of the MKAnnotation
+            // pipeline entirely so MapKit doesn't try to manage their
+            // views.
             if visibility?.waypointsVisible ?? true {
-                mv.addAnnotations(waypoints.map(WaypointAnnotation.init))
+                let mapKitAnnotations = waypoints.filter { wp in
+                    if case .controlMeasure = wp.kind { return false }
+                    return true
+                }
+                mv.addAnnotations(mapKitAnnotations.map(WaypointAnnotation.init))
             }
 
             // Restore selection so the controls card keeps tracking the
@@ -737,42 +760,11 @@ struct MapContainerView: UIViewRepresentable {
                     view.isDraggable = true
                     return view
                 }
-                if let measure = wp.waypoint.kind.controlMeasure {
-                    let id = "waypoint-control-measure"
-                    // Use our LockedSizeAnnotationView subclass which
-                    // overrides the bounds setter — that's the only
-                    // reliable way to stop MapKit's internal layout
-                    // passes (during pinch-zoom / camera changes) from
-                    // resizing the view and visually scaling the symbol.
-                    let view: LockedSizeAnnotationView
-                    if let reused = mv.dequeueReusableAnnotationView(withIdentifier: id)
-                        as? LockedSizeAnnotationView {
-                        view = reused
-                        view.annotation = wp
-                    } else {
-                        view = LockedSizeAnnotationView(annotation: wp,
-                                                        reuseIdentifier: id)
-                    }
-                    let img = TacticalControlMeasureRenderer.image(
-                        for: measure,
-                        rotation: wp.waypoint.rotation
-                    )
-                    view.setSymbolImage(img)
-                    // Apply the current zoom-derived scale immediately so
-                    // the symbol enters at the right size — otherwise it
-                    // would flash at native size before the next camera
-                    // change fires applyZoomScaleToControlMeasures.
-                    let initialScale = CGFloat(wp.waypoint.scale)
-                        * currentZoomScaleFactor(for: mv)
-                    view.applyZoomScale(initialScale)
-                    view.centerOffset = .zero
-                    // Disable the native callout — we drive selection via
-                    // mapView(_:didSelect:) and show our own floating
-                    // rotate / resize controls instead.
-                    view.canShowCallout = false
-                    view.isDraggable = true
-                    return view
-                }
+                // Tactical control measures are rendered by
+                // `TacticalSymbolOverlay` (a SwiftUI overlay above
+                // the map view), not by MKMapView's annotation
+                // pipeline. They're filtered out before they ever
+                // become annotations — see `refresh()`.
                 let id = "waypoint"
                 let view = mv.dequeueReusableAnnotationView(withIdentifier: id) as? MKMarkerAnnotationView
                     ?? MKMarkerAnnotationView(annotation: wp, reuseIdentifier: id)

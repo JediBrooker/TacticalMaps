@@ -38,6 +38,25 @@ final class MapViewModel: ObservableObject {
     /// the current zoom level.
     @Published var currentMetresPerPoint: Double = 1.0
 
+    /// Screen position (in MKMapView's coordinate space, which is the
+    /// same as the SwiftUI overlay's coordinate space because both
+    /// fill the screen) for every tactical-control-measure waypoint.
+    /// Republished on every camera change by `MapContainerView.Coordinator`.
+    /// `TacticalSymbolOverlay` reads this and places each SwiftUI
+    /// symbol view at the right point.
+    @Published var waypointScreenPositions: [UUID: CGPoint] = [:]
+
+    /// The current map's zoom-derived scale factor (the same value the
+    /// coordinator applies to the on-map symbol's transform). The
+    /// SwiftUI overlay multiplies this by each waypoint's `scale` to
+    /// pick the display size.
+    @Published var zoomScaleFactor: CGFloat = 1.0
+
+    /// Bridge installed by `MapContainerView` so the SwiftUI overlay
+    /// can convert a screen point (e.g. the end of a drag) back to a
+    /// geographic coordinate without needing direct access to MKMapView.
+    var screenToCoordinate: ((CGPoint) -> CLLocationCoordinate2D)?
+
     /// The waypoint scale value that, applied to a newly-placed tactical
     /// control measure, makes the symbol render at roughly 10% of the
     /// screen height at the *current* zoom level. The symbol then keeps

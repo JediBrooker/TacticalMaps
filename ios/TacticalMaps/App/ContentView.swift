@@ -33,6 +33,21 @@ struct ContentView: View {
                 )
                 .ignoresSafeArea()
 
+                // SwiftUI overlay for tactical control measures. Sits
+                // directly above the map so its symbols render WITHOUT
+                // going through MKMapView's annotation pipeline —
+                // gives us a real .shadow() halo, vector-crisp lines
+                // at any zoom, and hit-testing that matches the
+                // visible symbol pixels exactly.
+                TacticalSymbolOverlay(
+                    waypointStore: waypointStore,
+                    mapVM: mapVM,
+                    visibility: visibility
+                )
+                .ignoresSafeArea()
+                .allowsHitTesting(!drawingSession.isDrawing
+                                  && !calibration.isCalibrating)
+
                 // Tap-anywhere-else dismisses the drawings panel. Layered between
                 // the map and the HUD so taps on HUD controls still work.
                 if drawingsPanelOpen {
