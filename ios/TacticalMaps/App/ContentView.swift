@@ -62,33 +62,6 @@ struct ContentView: View {
                     CrosshairOverlay().allowsHitTesting(false)
                 }
 
-                #if DEBUG
-                // Fixed 76×76 pt reference badge — same physical pixel
-                // dimensions as a 1× tactical-symbol annotation
-                // (baseSize 64 + 2*haloPadding 6). Compare to any
-                // tactical task symbol on the map at different zoom
-                // levels: if they stay the same relative size, the
-                // symbol is pixel-fixed; if not, the symbol is being
-                // scaled and we have a real bug.
-                VStack {
-                    Spacer()
-                    HStack {
-                        ZStack {
-                            Rectangle()
-                                .strokeBorder(Color.yellow, lineWidth: 1)
-                                .frame(width: 76, height: 76)
-                            Text("76pt\nref")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.yellow)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding(.leading, 16)
-                        .padding(.bottom, 120)
-                        Spacer()
-                    }
-                }
-                .allowsHitTesting(false)
-                #endif
 
                 VStack(spacing: 0) {
                     MGRSHeaderView(

@@ -244,6 +244,7 @@ struct MapContainerView: UIViewRepresentable {
             mapVM.mapRegionDidChange(mv.region, animated: animated, byUser: byUser)
             mapVM.mapCameraDidChange(heading: mv.camera.heading)
             pdfImageView?.updateFrame(in: mv)
+            applyZoomScaleToControlMeasures(in: mv)
         }
 
         /// Fires on every render frame during pan/zoom/rotate — the only delegate
@@ -252,6 +253,50 @@ struct MapContainerView: UIViewRepresentable {
         func mapViewDidChangeVisibleRegion(_ mv: MKMapView) {
             mapVM.mapCameraDidChange(heading: mv.camera.heading)
             pdfImageView?.updateFrame(in: mv)
+            applyZoomScaleToControlMeasures(in: mv)
+        }
+
+        /// Re-apply the zoom-derived scale to every tactical-symbol
+        /// annotation view. Called on every camera change so the
+        /// symbols track the map's current zoom level — i.e. the
+        /// symbol represents a fixed *geographic* footprint, not a
+        /// fixed pixel size.
+        ///
+        /// The base scale comes from `metresPerPoint` at the current
+        /// camera distance: when the user zooms in (small metres-per-
+        /// point), the scale goes up; when they zoom out (large
+        /// metres-per-point), it goes down. The waypoint's own
+        /// `scale` field multiplies this so the user can still dial
+        /// the absolute size up or down for any individual symbol.
+        private func applyZoomScaleToControlMeasures(in mv: MKMapView) {
+            let scaleFactor = currentZoomScaleFactor(for: mv)
+            for ann in mv.annotations.compactMap({ $0 as? WaypointAnnotation }) {
+                guard case .controlMeasure = ann.waypoint.kind,
+                      let view = mv.view(for: ann) as? LockedSizeAnnotationView
+                else { continue }
+                let s = CGFloat(ann.waypoint.scale) * scaleFactor
+                view.applyZoomScale(s)
+            }
+        }
+
+        /// Convert the current map region into a unit scale where
+        /// `1.0` ≈ a "natural" reference zoom (~50 metres across the
+        /// shorter screen dimension). Clamped to [0.05, 8.0] so the
+        /// symbol stays visible at extremes.
+        private func currentZoomScaleFactor(for mv: MKMapView) -> CGFloat {
+            // 111_000 m per degree of latitude is a good enough
+            // approximation for symbol-size purposes (the cos(lat)
+            // correction for longitude is irrelevant since we only
+            // use one delta).
+            let latDeltaMetres = mv.region.span.latitudeDelta * 111_000
+            let viewHeight = max(Double(mv.bounds.height), 1)
+            let metresPerPoint = latDeltaMetres / viewHeight
+            // Reference: at 0.5 m/pt (a typical "city block" zoom),
+            // scale = 1.0. Halve metresPerPoint (zoom in) → scale 2.0.
+            // Double metresPerPoint (zoom out) → scale 0.5.
+            let referenceMetresPerPoint = 0.5
+            let raw = referenceMetresPerPoint / metresPerPoint
+            return CGFloat(max(0.05, min(raw, 8.0)))
         }
 
         // MARK: Drawing tap
@@ -651,6 +696,13 @@ struct MapContainerView: UIViewRepresentable {
                         rotation: wp.waypoint.rotation,
                         scale: wp.waypoint.scale)
                     view.setSymbolImage(img)
+                    // Apply the current zoom-derived scale immediately so
+                    // the symbol enters at the right size — otherwise it
+                    // would flash at native size before the next camera
+                    // change fires applyZoomScaleToControlMeasures.
+                    let initialScale = CGFloat(wp.waypoint.scale)
+                        * currentZoomScaleFactor(for: mv)
+                    view.applyZoomScale(initialScale)
                     view.centerOffset = .zero
                     // Disable the native callout — we drive selection via
                     // mapView(_:didSelect:) and show our own floating
