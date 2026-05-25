@@ -87,21 +87,44 @@ private struct TacticalSymbolBubble: View {
         .onTapGesture {
             mapVM.selectedWaypointID = waypoint.id
         }
+        // Long-press + drag (iOS-native draggable-annotation pattern).
+        // A regular tap or a two-finger pinch fails the long-press
+        // immediately so the touch passes through to MKMapView for
+        // pan/zoom. Only an intentional hold for 0.35s engages drag.
         .gesture(
-            DragGesture(minimumDistance: 8)
+            LongPressGesture(minimumDuration: 0.35)
+                .sequenced(before: DragGesture(minimumDistance: 0))
                 .onChanged { value in
-                    isDragging = true
-                    dragOffset = value.translation
+                    switch value {
+                    case .first(true):
+                        // Long-press detected — enter drag mode with
+                        // a haptic so the user knows the symbol's
+                        // "grabbed".
+                        if !isDragging {
+                            isDragging = true
+                            UIImpactFeedbackGenerator(style: .medium)
+                                .impactOccurred()
+                        }
+                    case .second(true, let drag):
+                        if let drag = drag {
+                            dragOffset = drag.translation
+                        }
+                    default:
+                        break
+                    }
                 }
                 .onEnded { value in
-                    isDragging = false
-                    defer { dragOffset = .zero }
-                    guard let originalPos = mapVM.waypointScreenPositions[waypoint.id],
+                    defer {
+                        isDragging = false
+                        dragOffset = .zero
+                    }
+                    guard case .second(true, let drag?) = value,
+                          let originalPos = mapVM.waypointScreenPositions[waypoint.id],
                           let convert = mapVM.screenToCoordinate
                     else { return }
                     let newScreenPoint = CGPoint(
-                        x: originalPos.x + value.translation.width,
-                        y: originalPos.y + value.translation.height
+                        x: originalPos.x + drag.translation.width,
+                        y: originalPos.y + drag.translation.height
                     )
                     let newCoord = convert(newScreenPoint)
                     var updated = waypoint
