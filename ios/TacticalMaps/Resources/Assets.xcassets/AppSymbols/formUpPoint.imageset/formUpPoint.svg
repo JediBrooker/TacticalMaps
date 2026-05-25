@@ -1,6 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-  <!-- Upper half-circle outline (radius 40, centred at (60,70)) -->
   <path d="M 20,70 A 40,40 0 0 1 100,70" fill="none" stroke="#000" stroke-width="4"/>
-  <!-- Diameter line, extends 12px past each end of the arc -->
   <line x1="8" y1="70" x2="112" y2="70" stroke="#000" stroke-width="4"/>
 </svg>

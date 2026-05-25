@@ -206,7 +206,7 @@ enum TacticalControlMeasure: String, Codable, Hashable, CaseIterable {
         case .withdraw:               return "Withdraw"
         case .withdrawUnderPressure:  return "Withdraw Under Pressure"
         case .landingZone:            return "Landing Zone"
-        case .ccp:                    return "Communications Checkpoint"
+        case .ccp:                    return "Casualty Collection Point"
         case .observationPostRecon:   return "Observation Post (Recon)"
         case .axisOfMainAttack:       return "Axis of Main Attack"
         case .axisOfSupportingAttack: return "Axis of Supporting Attack"
