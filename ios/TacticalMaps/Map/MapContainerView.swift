@@ -273,16 +273,43 @@ struct MapContainerView: UIViewRepresentable {
         private func applyZoomScaleToControlMeasures(in mv: MKMapView) {
             let scaleFactor = currentZoomScaleFactor(for: mv)
             for ann in mv.annotations.compactMap({ $0 as? WaypointAnnotation }) {
-                guard case .controlMeasure = ann.waypoint.kind,
+                guard case .controlMeasure(let measure) = ann.waypoint.kind,
                       let view = mv.view(for: ann) as? LockedSizeAnnotationView
                 else { continue }
-                // Final on-screen scale = waypoint.scale × zoom factor.
-                // The renderer always produces a base-size (76pt) image
-                // — all sizing is done here via the view's transform
-                // so we don't double-apply waypoint.scale.
                 let s = CGFloat(ann.waypoint.scale) * scaleFactor
+                // Pull a halo-tier-appropriate bitmap and apply it.
+                // The renderer caches by quantised halo so most camera
+                // changes hit the cache.
+                let img = TacticalControlMeasureRenderer.image(
+                    for: measure,
+                    rotation: ann.waypoint.rotation,
+                    halo: bakedHaloPt(forFinalScale: s)
+                )
+                view.setSymbolImage(img)
                 view.applyZoomScale(s)
             }
+        }
+
+        /// Pick a baked halo width (in points) that, after the
+        /// annotation view's transform-scale of `s`, renders as an
+        /// on-screen glow that *shrinks* as the symbol grows.
+        ///
+        /// Target visible glow:
+        ///   visible_pt = max(0, 5 − 0.8 × s)
+        ///       s = 0.5 → 4.6pt   (small symbol, prominent glow)
+        ///       s = 1   → 4.2pt
+        ///       s = 3   → 2.6pt
+        ///       s = 5   → 1.0pt
+        ///       s = 6+  → 0pt
+        ///
+        /// Baked into the bitmap as visible_pt / s, because the
+        /// bitmap is then transform-scaled by s and the glow scales
+        /// with it.
+        func bakedHaloPt(forFinalScale s: CGFloat) -> CGFloat {
+            let safe = max(s, 0.01)
+            let visiblePt = max(0, 5.0 - 0.8 * safe)
+            if visiblePt < 0.05 { return 0 }
+            return visiblePt / safe
         }
 
         /// Convert the current map region into a unit scale where
@@ -757,16 +784,18 @@ struct MapContainerView: UIViewRepresentable {
                         view = LockedSizeAnnotationView(annotation: wp,
                                                         reuseIdentifier: id)
                     }
-                    let img = TacticalControlMeasureRenderer.image(
-                        for: measure,
-                        rotation: wp.waypoint.rotation)
-                    view.setSymbolImage(img)
                     // Apply the current zoom-derived scale immediately so
                     // the symbol enters at the right size — otherwise it
                     // would flash at native size before the next camera
                     // change fires applyZoomScaleToControlMeasures.
                     let initialScale = CGFloat(wp.waypoint.scale)
                         * currentZoomScaleFactor(for: mv)
+                    let img = TacticalControlMeasureRenderer.image(
+                        for: measure,
+                        rotation: wp.waypoint.rotation,
+                        halo: bakedHaloPt(forFinalScale: initialScale)
+                    )
+                    view.setSymbolImage(img)
                     view.applyZoomScale(initialScale)
                     view.centerOffset = .zero
                     // Disable the native callout — we drive selection via
