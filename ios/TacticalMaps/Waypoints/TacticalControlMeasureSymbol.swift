@@ -3,27 +3,50 @@ import UIKit
 
 /// Renders a `TacticalControlMeasure` from the bundled PNG / SVG asset
 /// under `Assets.xcassets/AppSymbols/`. Pure black symbol on a
-/// transparent background — **no halo is baked in**. The white outer
-/// glow is applied live by `LockedSizeAnnotationView` as a `CALayer`
-/// shadow, so its on-screen width can stay constant in pixels
-/// regardless of how much the symbol has been scaled up.
+/// transparent background, with a thin 1pt white outline baked in
+/// via eight zero-radius offset shadows (cardinal + diagonal). The
+/// outline scales 1:1 with the symbol via the annotation view's
+/// transform; starting from 1pt it stays subtle even at large
+/// transform scales.
 struct TacticalControlMeasureSymbolView: View {
     let measure: TacticalControlMeasure
     /// Clockwise rotation in degrees. 0 = canonical orientation.
     var rotation: Double = 0
     var size: CGFloat = 56
+    /// Extra room reserved around the symbol so the 1pt outline isn't
+    /// clipped by the rendered bitmap's edges.
+    static let haloPadding: CGFloat = 2
 
     var body: some View {
-        ZStack {
-            Image("AppSymbols/\(measure.assetName)")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(.black)
-                .frame(width: size, height: size)
-                .rotationEffect(.degrees(rotation))
+        let canvas = size + 2 * Self.haloPadding
+        return ZStack {
+            applyHalo {
+                Image("AppSymbols/\(measure.assetName)")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(.black)
+                    .frame(width: size, height: size)
+            }
+            .rotationEffect(.degrees(rotation))
         }
-        .frame(width: size, height: size)
+        .frame(width: canvas, height: canvas)
+    }
+
+    /// Eight stacked zero-radius white shadows form a crisp 1pt outline
+    /// around any opaque pixels in the content.
+    @ViewBuilder
+    private func applyHalo<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        let r: CGFloat = 1
+        content()
+            .shadow(color: .white, radius: 0, x:  r, y:  0)
+            .shadow(color: .white, radius: 0, x: -r, y:  0)
+            .shadow(color: .white, radius: 0, x:  0, y:  r)
+            .shadow(color: .white, radius: 0, x:  0, y: -r)
+            .shadow(color: .white, radius: 0, x:  r, y:  r)
+            .shadow(color: .white, radius: 0, x: -r, y: -r)
+            .shadow(color: .white, radius: 0, x:  r, y: -r)
+            .shadow(color: .white, radius: 0, x: -r, y:  r)
     }
 }
 
