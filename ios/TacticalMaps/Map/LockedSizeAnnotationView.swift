@@ -20,6 +20,14 @@ final class LockedSizeAnnotationView: MKAnnotationView {
         iv.contentMode = .center
         iv.autoresizingMask = []
         iv.clipsToBounds = false
+        // White outer glow rendered as a CALayer shadow on the live
+        // annotation view (instead of baked into the bitmap). This
+        // lets us shrink the halo's apparent width independently as
+        // the symbol is scaled up — see `applyZoomScale`.
+        iv.layer.shadowColor = UIColor.white.cgColor
+        iv.layer.shadowOpacity = 1.0
+        iv.layer.shadowOffset = .zero
+        iv.layer.masksToBounds = false
         return iv
     }()
 
@@ -28,11 +36,15 @@ final class LockedSizeAnnotationView: MKAnnotationView {
 
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        clipsToBounds = false
+        layer.masksToBounds = false
         addSubview(symbolImageView)
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
+        clipsToBounds = false
+        layer.masksToBounds = false
         addSubview(symbolImageView)
     }
 
@@ -58,7 +70,21 @@ final class LockedSizeAnnotationView: MKAnnotationView {
     /// Apply a uniform scale to the view via its `transform`. The
     /// coordinator calls this on every map-camera change so the symbol
     /// tracks the map's current zoom level.
+    ///
+    /// Also adjusts the shadow radius so the white halo's on-screen
+    /// width *shrinks* relative to the symbol as it grows. Without
+    /// this, the halo would scale 1:1 with the symbol via transform,
+    /// looking thick and fuzzy at high zoom.
+    ///
+    /// Formula:
+    ///   onScreenHaloPt  = max(0.8, 3.0 / scale)
+    ///   shadowRadius    = onScreenHaloPt / scale
+    /// so at scale 1× the halo is ~3pt, at 5× ~0.6pt, with a 0.8pt
+    /// floor so it never fully disappears.
     func applyZoomScale(_ scale: CGFloat) {
-        self.transform = CGAffineTransform(scaleX: scale, y: scale)
+        let safe = max(scale, 0.01)
+        self.transform = CGAffineTransform(scaleX: safe, y: safe)
+        let onScreenHaloPt = max(0.8, 3.0 / safe)
+        symbolImageView.layer.shadowRadius = onScreenHaloPt / safe
     }
 }

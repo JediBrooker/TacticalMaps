@@ -3,48 +3,39 @@ import UIKit
 
 /// Renders a `TacticalControlMeasure` from the bundled PNG / SVG asset
 /// under `Assets.xcassets/AppSymbols/`. Pure black symbol on a
-/// transparent background, optionally rotated around its centre.
+/// transparent background.
 ///
-/// A soft white halo (stacked shadows) is drawn behind the silhouette
-/// so the black ink reads against any basemap — satellite, terrain,
-/// dark imported PDF, etc. The halo is invisible against a white
-/// background (preview / picker rows) so the symbol still looks
-/// "clean" inside the edit sheet.
+/// **No halo is baked in.** The white outer glow used to make symbols
+/// pop on satellite imagery is applied live by `LockedSizeAnnotationView`
+/// as a `CALayer` shadow, so its on-screen width can shrink
+/// independently as the symbol is transform-scaled up — the user
+/// wanted the halo to get *relatively* smaller as the symbol grows
+/// (rather than thickening 1:1 with it).
+///
+/// On non-map surfaces (the picker preview), the symbol just sits on
+/// a white card, where a halo would be invisible anyway.
 struct TacticalControlMeasureSymbolView: View {
     let measure: TacticalControlMeasure
     /// Clockwise rotation in degrees. 0 = canonical orientation.
     var rotation: Double = 0
     var size: CGFloat = 56
-    /// Extra room reserved around the symbol for the halo bleed.
-    /// Exposed as a constant so the map renderer can pad its
-    /// `UIImage` bounds to match (otherwise the halo gets clipped).
-    static let haloPadding: CGFloat = 6
 
     var body: some View {
-        // The rotation lives inside a fixed-size frame so the produced
-        // bitmap is always `size+2*haloPadding` square — independent
-        // of rotation angle. (Without the outer frame, `.rotationEffect`
-        // grows the view's intrinsic size at non-square-multiple
-        // angles, producing different-sized images per rotation —
-        // which downstream looked like the map was scaling the symbol.)
-        let canvas = size + 2 * Self.haloPadding
-        return ZStack {
+        // Fixed-size canvas so `ImageRenderer` produces the same point
+        // dimensions regardless of rotation angle. Without the outer
+        // .frame, .rotationEffect at non-square angles grows the
+        // intrinsic size to the rotated bbox, breaking downstream
+        // assumptions about image size.
+        ZStack {
             Image("AppSymbols/\(measure.assetName)")
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(.black)
                 .frame(width: size, height: size)
-                // Three stacked white shadows build up an outer glow
-                // without washing out the silhouette. Radius 2 gives
-                // ~4pt visible halo width, which clears the symbol on
-                // satellite imagery.
-                .shadow(color: .white, radius: 2)
-                .shadow(color: .white, radius: 2)
-                .shadow(color: .white, radius: 1)
                 .rotationEffect(.degrees(rotation))
         }
-        .frame(width: canvas, height: canvas)
+        .frame(width: size, height: size)
     }
 }
 
