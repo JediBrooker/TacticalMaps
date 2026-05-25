@@ -20,6 +20,8 @@ struct DrawToolbar: View {
 
                 colorSwatchMenu
 
+                strokeStyleToggle
+
                 Text("\(session.inProgressCoordinates.count) pt\(session.inProgressCoordinates.count == 1 ? "" : "s")")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.white.opacity(0.8))
@@ -68,6 +70,39 @@ struct DrawToolbar: View {
             .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 18))
             .overlay(RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.12)))
         }
+    }
+
+    /// Toggle between solid and dashed stroke for the finalized line /
+    /// polygon outline. While drawing, the in-progress preview is always
+    /// rendered dashed — this toggle only affects the committed shape.
+    /// The icon draws the actual stroke style (solid bar vs three short
+    /// dashes) so the affordance reads without a label.
+    private var strokeStyleToggle: some View {
+        Button {
+            session.isDashed.toggle()
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(.white.opacity(session.isDashed ? 0.22 : 0.10))
+                if session.isDashed {
+                    HStack(spacing: 2.5) {
+                        ForEach(0..<3, id: \.self) { _ in
+                            Capsule().fill(.white).frame(width: 5, height: 2.5)
+                        }
+                    }
+                } else {
+                    Capsule().fill(.white).frame(width: 20, height: 2.5)
+                }
+            }
+            .frame(width: 34, height: 34)
+            .overlay(
+                Circle()
+                    .stroke(.white.opacity(session.isDashed ? 0.5 : 0), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Stroke style")
+        .accessibilityValue(session.isDashed ? "Dashed" : "Solid")
     }
 
     /// Tappable circle showing the current stroke colour. Tapping opens a

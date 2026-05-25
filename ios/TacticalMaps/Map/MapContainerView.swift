@@ -657,7 +657,8 @@ struct MapContainerView: UIViewRepresentable {
                 let r = MKPolylineRenderer(polyline: line)
                 r.strokeColor = UIColor(hex: style.strokeColorHex)
                 r.lineWidth   = CGFloat(style.strokeWidth)
-                if inProgress { r.lineDashPattern = [6, 4] }
+                r.lineDashPattern = effectiveDashPattern(for: style,
+                                                         inProgress: inProgress)
                 return r
             }
             if let poly = overlay as? MKPolygon {
@@ -666,10 +667,23 @@ struct MapContainerView: UIViewRepresentable {
                 r.lineWidth   = CGFloat(style.strokeWidth)
                 let fillHex   = style.fillColorHex ?? style.strokeColorHex
                 r.fillColor   = UIColor(hex: fillHex, alpha: style.fillOpacity)
-                if inProgress { r.lineDashPattern = [6, 4] }
+                r.lineDashPattern = effectiveDashPattern(for: style,
+                                                         inProgress: inProgress)
                 return r
             }
             return MKOverlayRenderer(overlay: overlay)
+        }
+
+        /// Resolve the dash pattern for an overlay's renderer.
+        /// - In-progress shapes always render dashed (preview convention),
+        ///   regardless of the user's solid/dashed toggle.
+        /// - Finalized shapes honour `style.dashPattern` — nil means solid.
+        private func effectiveDashPattern(for style: DrawingStyle,
+                                          inProgress: Bool) -> [NSNumber]? {
+            if inProgress {
+                return [6, 4]
+            }
+            return style.dashPattern.map { $0.map { NSNumber(value: $0) } }
         }
 
         func mapView(_ mv: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {

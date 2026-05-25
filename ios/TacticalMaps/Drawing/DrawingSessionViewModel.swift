@@ -15,6 +15,10 @@ final class DrawingSessionViewModel: ObservableObject {
     /// Persists across sessions until the user picks something else.
     @Published var strokeColorHex: String = DrawingPalette.default.hex
 
+    /// When true, finished lines and polygon strokes render dashed.
+    /// Persists across sessions until the user toggles it.
+    @Published var isDashed: Bool = false
+
     var isDrawing: Bool { activeKind != nil }
 
     var canFinish: Bool {
@@ -58,9 +62,13 @@ final class DrawingSessionViewModel: ObservableObject {
               inProgressCoordinates.count >= kind.minimumVertices else {
             return nil
         }
+        // Standard tactical dash: 8pt on, 6pt off. Tuned to read at the
+        // app's default 3pt stroke width without losing the underlying
+        // shape outline on satellite imagery.
         let style = DrawingStyle(
             strokeColorHex: strokeColorHex,
-            fillColorHex:   strokeColorHex   // polygons fill with same hue
+            fillColorHex:   strokeColorHex,   // polygons fill with same hue
+            dashPattern:    isDashed ? [8, 6] : nil
         )
         return DrawingShape(
             kind: kind,
