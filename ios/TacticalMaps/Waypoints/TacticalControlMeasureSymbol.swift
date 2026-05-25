@@ -3,19 +3,18 @@ import UIKit
 
 /// Renders a `TacticalControlMeasure` from the bundled PNG / SVG asset
 /// under `Assets.xcassets/AppSymbols/`. Pure black symbol on a
-/// transparent background, with a thin 1pt white outline baked in
-/// via eight zero-radius offset shadows (cardinal + diagonal). The
-/// outline scales 1:1 with the symbol via the annotation view's
-/// transform; starting from 1pt it stays subtle even at large
-/// transform scales.
+/// transparent background with a soft white outer glow baked in via
+/// stacked Gaussian shadows — reads as a halo rather than a hard
+/// outline. The glow scales 1:1 with the symbol via the annotation
+/// view's transform.
 struct TacticalControlMeasureSymbolView: View {
     let measure: TacticalControlMeasure
     /// Clockwise rotation in degrees. 0 = canonical orientation.
     var rotation: Double = 0
     var size: CGFloat = 56
-    /// Extra room reserved around the symbol so the 1pt outline isn't
+    /// Extra room reserved around the symbol so the glow isn't
     /// clipped by the rendered bitmap's edges.
-    static let haloPadding: CGFloat = 2
+    static let haloPadding: CGFloat = 6
 
     var body: some View {
         let canvas = size + 2 * Self.haloPadding
@@ -33,20 +32,16 @@ struct TacticalControlMeasureSymbolView: View {
         .frame(width: canvas, height: canvas)
     }
 
-    /// Eight stacked zero-radius white shadows form a crisp 1pt outline
-    /// around any opaque pixels in the content.
+    /// Three stacked Gaussian-blurred white shadows. Each is soft on
+    /// its own; stacking accumulates alpha into a definite glow that
+    /// reads on busy satellite imagery instead of being a sharp
+    /// outline.
     @ViewBuilder
     private func applyHalo<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        let r: CGFloat = 1
         content()
-            .shadow(color: .white, radius: 0, x:  r, y:  0)
-            .shadow(color: .white, radius: 0, x: -r, y:  0)
-            .shadow(color: .white, radius: 0, x:  0, y:  r)
-            .shadow(color: .white, radius: 0, x:  0, y: -r)
-            .shadow(color: .white, radius: 0, x:  r, y:  r)
-            .shadow(color: .white, radius: 0, x: -r, y: -r)
-            .shadow(color: .white, radius: 0, x:  r, y: -r)
-            .shadow(color: .white, radius: 0, x: -r, y:  r)
+            .shadow(color: .white, radius: 2)
+            .shadow(color: .white, radius: 2)
+            .shadow(color: .white, radius: 1.5)
     }
 }
 

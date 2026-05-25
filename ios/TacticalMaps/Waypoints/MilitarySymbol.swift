@@ -224,8 +224,13 @@ struct MilitarySymbolView: View {
             // marks are easier to read against satellite imagery,
             // since adding a halo around just the indicator would
             // require restructuring the renderer entirely.
+            //
+            // Gap (between echelon band and frame top) reduced from
+            // 0.06 → 0.02 so the echelon sits closer to the frame —
+            // user feedback that the platoon dots were floating too
+            // far above the rest of the graphic.
             let echelonH: CGFloat = (h - poleH) * 0.28
-            let gap: CGFloat      = (h - poleH) * 0.06
+            let gap: CGFloat      = (h - poleH) * 0.02
 
             let frameTop = echelonH + gap
             let frameBottom = h - poleH - 2
@@ -819,12 +824,12 @@ struct MilitarySymbolView: View {
             ctx.stroke(slash, with: ink, lineWidth: 2)  // was 1.5
         case .section:
             drawDots(count: 1, ctx: ctx, cx: cx, cy: cy,
-                     radius: 3.0,    // was 2.2
+                     radius: 3.2,
                      spacing: 0, ink: ink)
         case .platoon:
             drawDots(count: 3, ctx: ctx, cx: cx, cy: cy,
-                     radius: 2.6,    // was 2.0
-                     spacing: 7.5,   // was 6 — wider to keep dots from kissing
+                     radius: 3.2,
+                     spacing: 9,     // 2*r + breathing room
                      ink: ink)
         case .company:
             drawBars(count: 1, ctx: ctx, cx: cx, top: rect.minY + 1,
