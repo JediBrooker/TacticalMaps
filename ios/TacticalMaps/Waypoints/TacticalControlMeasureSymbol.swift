@@ -11,11 +11,15 @@ struct TacticalControlMeasureSymbolView: View {
 
     var body: some View {
         Image("AppSymbols/\(measure.assetName)")
-            .renderingMode(.original)
+            .renderingMode(.template)
             .resizable()
             .scaledToFit()
+            .foregroundStyle(.black)
             .frame(width: size, height: size)
-            .shadow(color: .black.opacity(0.25), radius: 1, x: 0, y: 1)
+            .padding(2)
+            .background(Color.white.opacity(0.95))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .shadow(color: .black.opacity(0.35), radius: 1.5, x: 0, y: 1)
     }
 }
 
