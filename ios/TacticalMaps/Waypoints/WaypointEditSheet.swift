@@ -20,6 +20,7 @@ struct WaypointEditSheet: View {
     @State private var isHeadquarters: Bool            = false
     // Control measure
     @State private var control:     TacticalControlMeasure = .assemblyArea
+    @State private var rotation:    Double                 = 0
     @State private var notes: String = ""
     @State private var elevationText: String = ""
     @State private var showDeleteConfirm = false
@@ -34,6 +35,7 @@ struct WaypointEditSheet: View {
             _name          = State(initialValue: wp.name)
             _notes         = State(initialValue: wp.notes ?? "")
             _elevationText = State(initialValue: wp.elevation.map { String(Int($0)) } ?? "")
+            _rotation      = State(initialValue: wp.rotation)
             switch wp.kind {
             case .generic:
                 _category = State(initialValue: .generic)
@@ -62,7 +64,9 @@ struct WaypointEditSheet: View {
                 Section {
                     HStack {
                         Spacer()
-                        WaypointKindIcon(kind: currentKind, size: 64)
+                        WaypointKindIcon(kind: currentKind,
+                                         size: 64,
+                                         rotation: previewRotation)
                             .frame(width: 80, height: 80)
                             .padding(.vertical, 8)
                         Spacer()
@@ -110,6 +114,32 @@ struct WaypointEditSheet: View {
                                 Text(m.displayName).tag(m)
                             }
                         }
+                    }
+                    Section {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Rotation")
+                                Spacer()
+                                Text("\(Int(rotation.rounded()))°")
+                                    .font(.subheadline.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                            Slider(value: $rotation, in: 0...360, step: 1)
+                            HStack {
+                                Button("Reset") { rotation = 0 }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                Spacer()
+                                ForEach([0, 90, 180, 270], id: \.self) { deg in
+                                    Button("\(deg)°") { rotation = Double(deg) }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                }
+                            }
+                        }
+                    } header: { Text("Orientation") } footer: {
+                        Text("Rotate the symbol to indicate direction (e.g. axis of advance, ambush facing).")
+                            .font(.caption2)
                     }
                 }
 
@@ -183,6 +213,12 @@ struct WaypointEditSheet: View {
         }
     }
 
+    /// Rotation applied to the live preview. Only meaningful for tactical
+    /// control measures — other categories ignore the value.
+    private var previewRotation: Double {
+        category == .controlMeasure ? rotation : 0
+    }
+
     private var locationCoordinate: CLLocationCoordinate2D {
         original?.coordinate ?? defaultCoordinate
     }
@@ -192,12 +228,17 @@ struct WaypointEditSheet: View {
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let parsedElevation = Double(elevationText.trimmingCharacters(in: .whitespaces))
 
+        // Persist rotation only for control measures; reset to 0 otherwise
+        // so a user who flips category doesn't carry over a stale value.
+        let persistedRotation = category == .controlMeasure ? rotation : 0
+
         if let existing = original {
             var updated = existing
             updated.name      = trimmedName
             updated.kind      = currentKind
             updated.notes     = trimmedNotes.isEmpty ? nil : trimmedNotes
             updated.elevation = parsedElevation
+            updated.rotation  = persistedRotation
             waypointStore.update(updated)
         } else {
             let new = Waypoint(
@@ -205,7 +246,8 @@ struct WaypointEditSheet: View {
                 notes:     trimmedNotes.isEmpty ? nil : trimmedNotes,
                 coordinate: defaultCoordinate,
                 elevation: parsedElevation,
-                kind:      currentKind
+                kind:      currentKind,
+                rotation:  persistedRotation
             )
             waypointStore.add(new)
         }

@@ -8,12 +8,17 @@ import SwiftUI
 struct WaypointKindIcon: View {
     let kind: WaypointKind
     var size: CGFloat = 32
+    /// Clockwise rotation in degrees. Only applied to tactical control
+    /// measures (military unit symbols and SF Symbols are not rotated).
+    var rotation: Double = 0
 
     var body: some View {
         if let spec = kind.militarySpec {
             MilitarySymbolView(spec: spec, size: size)
         } else if let m = kind.controlMeasure {
-            TacticalControlMeasureSymbolView(measure: m, size: size)
+            TacticalControlMeasureSymbolView(measure: m,
+                                             rotation: rotation,
+                                             size: size)
         } else {
             Image(systemName: kind.sfSymbol)
                 .font(.system(size: size * 0.58, weight: .semibold))

@@ -470,7 +470,9 @@ struct MapContainerView: UIViewRepresentable {
                     let view = mv.dequeueReusableAnnotationView(withIdentifier: id)
                         ?? MKAnnotationView(annotation: wp, reuseIdentifier: id)
                     view.annotation = wp
-                    view.image = TacticalControlMeasureRenderer.image(for: measure)
+                    view.image = TacticalControlMeasureRenderer.image(
+                        for: measure,
+                        rotation: wp.waypoint.rotation)
                     view.centerOffset = .zero
                     view.canShowCallout = true
                     return view

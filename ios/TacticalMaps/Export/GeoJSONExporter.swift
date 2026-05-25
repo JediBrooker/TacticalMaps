@@ -69,6 +69,11 @@ enum GeoJSONExporter {
         if let m = wp.kind.controlMeasure {
             props["tacticalmaps:tcm_name"] = m.displayName
             props["tacticalmaps:tcm_asset"] = m.assetName
+            if wp.rotation != 0 {
+                // Round to 1° — sub-degree precision is meaningless for a
+                // hand-dialed slider and just clutters the diff.
+                props["tacticalmaps:rotation_deg"] = (wp.rotation.rounded() as Double)
+            }
         }
         if let n = wp.notes     { props["description"] = n }     // simplestyle uses "description"
         if let e = wp.elevation { props["tacticalmaps:elevation_m"] = e }

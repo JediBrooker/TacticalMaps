@@ -13,6 +13,10 @@ struct Waypoint: Identifiable, Codable, Hashable {
     var longitude: Double
     var elevation: Double?      // metres above sea level (optional)
     var kind: WaypointKind
+    /// Symbol rotation in degrees (0–360, clockwise). Only meaningful for
+    /// tactical control measures whose orientation conveys direction
+    /// (axis of advance, ambush, attack-by-fire, etc.). Ignored otherwise.
+    var rotation: Double
     var createdAt: Date
 
     init(id: UUID = UUID(),
@@ -22,6 +26,7 @@ struct Waypoint: Identifiable, Codable, Hashable {
          longitude: Double,
          elevation: Double? = nil,
          kind: WaypointKind = .generic,
+         rotation: Double = 0,
          createdAt: Date = .now) {
         self.id = id
         self.name = name
@@ -30,6 +35,7 @@ struct Waypoint: Identifiable, Codable, Hashable {
         self.longitude = longitude
         self.elevation = elevation
         self.kind = kind
+        self.rotation = rotation
         self.createdAt = createdAt
     }
 
@@ -40,10 +46,12 @@ struct Waypoint: Identifiable, Codable, Hashable {
          coordinate: CLLocationCoordinate2D,
          elevation: Double? = nil,
          kind: WaypointKind = .generic,
+         rotation: Double = 0,
          createdAt: Date = .now) {
         self.init(id: id, name: name, notes: notes,
                   latitude: coordinate.latitude, longitude: coordinate.longitude,
-                  elevation: elevation, kind: kind, createdAt: createdAt)
+                  elevation: elevation, kind: kind, rotation: rotation,
+                  createdAt: createdAt)
     }
 
     var coordinate: CLLocationCoordinate2D {
@@ -52,6 +60,38 @@ struct Waypoint: Identifiable, Codable, Hashable {
 
     var subtitle: String? {
         elevation.map { String(format: "%.0f m", $0) }
+    }
+
+    // MARK: Codable (custom to allow back-compat with files that pre-date `rotation`)
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, notes, latitude, longitude, elevation, kind, rotation, createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(UUID.self, forKey: .id)
+        self.name = try c.decode(String.self, forKey: .name)
+        self.notes = try c.decodeIfPresent(String.self, forKey: .notes)
+        self.latitude = try c.decode(Double.self, forKey: .latitude)
+        self.longitude = try c.decode(Double.self, forKey: .longitude)
+        self.elevation = try c.decodeIfPresent(Double.self, forKey: .elevation)
+        self.kind = try c.decode(WaypointKind.self, forKey: .kind)
+        self.rotation = try c.decodeIfPresent(Double.self, forKey: .rotation) ?? 0
+        self.createdAt = try c.decode(Date.self, forKey: .createdAt)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encodeIfPresent(notes, forKey: .notes)
+        try c.encode(latitude, forKey: .latitude)
+        try c.encode(longitude, forKey: .longitude)
+        try c.encodeIfPresent(elevation, forKey: .elevation)
+        try c.encode(kind, forKey: .kind)
+        try c.encode(rotation, forKey: .rotation)
+        try c.encode(createdAt, forKey: .createdAt)
     }
 }
 
