@@ -1,10 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="119.99999999999999" height="119.99999999999999" viewBox="0 0 119.99999999999999 119.99999999999999">
-<desc>59 59 0 0 119.99999999999999 119.99999999999999 0 0 119.99999999999999 119.99999999999999</desc>
-<metadata>
-<symbolID>25341600</symbolID>
-<anchor>59 59</anchor>
-<symbolBounds>0 0 119.99999999999999 119.99999999999999</symbolBounds>
-<imageBounds>0 0 119.99999999999999 119.99999999999999</imageBounds>
-</metadata>
-<g transform="translate(-42.718060882397864,-72.5858515734113) scale(0.33519553072625696,0.33519553072625696)"><g><g id="161">        <line fill="none" stroke="#000000" stroke-miterlimit="10" stroke-width="5" x1="122.229" x2="479.729" y1="607.125" y2="607.125"/>        <rect height="25" width="25" x="119.771" y="593.625"/>        <rect height="25" width="25" x="467.229" y="594.625"/>        <rect height="25" width="25" x="293.5" y="594.625"/>        <line fill="none" stroke="#000000" stroke-miterlimit="10" stroke-width="5" x1="306" x2="306" y1="586.125" y2="626.125"/>    </g><g id="162">        <line fill="none" stroke="#000000" stroke-miterlimit="10" stroke-width="5" x1="122.229" x2="479.729" y1="607.125" y2="607.125"/>        <rect height="25" width="25" x="119.771" y="593.625"/>        <rect height="25" width="25" x="467.229" y="594.625"/>        <rect height="25" width="25" x="293.5" y="594.625"/>        <rect height="25" width="25" x="206.635" y="594.625"/>        <rect height="25" width="25" x="380.365" y="594.625"/>        <line fill="none" stroke="#000000" stroke-miterlimit="10" stroke-width="5" x1="392.865" x2="392.865" y1="586.625" y2="626.625"/>        <line fill="none" stroke="#000000" stroke-miterlimit="10" stroke-width="5" x1="219.135" x2="219.135" y1="587.625" y2="627.625"/>    </g></g></g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+<circle cx="60" cy="60" r="48" fill="#000"/>
+<text x="60" y="60" font-family="Helvetica" font-size="34" font-weight="bold" fill="#fff" text-anchor="middle" dominant-baseline="central">NEUT</text>
 </svg>
