@@ -58,7 +58,7 @@ enum SymbolAffiliation: String, Codable, Hashable, CaseIterable {
 
 enum SymbolEchelon: String, Codable, Hashable, CaseIterable {
     case team, section, platoon
-    case company, battalion, regiment
+    case company, battalionRegiment
     case brigade, division
 
     var displayName: String {
@@ -67,8 +67,7 @@ enum SymbolEchelon: String, Codable, Hashable, CaseIterable {
         case .section:   return "Section"
         case .platoon:   return "Platoon"
         case .company:   return "Company"
-        case .battalion: return "Battalion"
-        case .regiment:  return "Regiment"
+        case .battalionRegiment: return "Battalion / Regiment"
         case .brigade:   return "Brigade"
         case .division:  return "Division"
         }
@@ -81,8 +80,7 @@ enum SymbolEchelon: String, Codable, Hashable, CaseIterable {
         case .section:   return "●"
         case .platoon:   return "●●●"
         case .company:   return "I"
-        case .battalion: return "II"
-        case .regiment:  return "III"
+        case .battalionRegiment: return "II"
         case .brigade:   return "X"
         case .division:  return "XX"
         }
@@ -821,10 +819,9 @@ struct MilitarySymbolView: View {
         case .company:
             drawBars(count: 1, ctx: ctx, cx: cx, top: rect.minY + 1,
                      height: rect.height - 2, barW: 2.5, spacing: 0, ink: ink)
-        case .battalion:
+        case .battalionRegiment:
             drawBars(count: 2, ctx: ctx, cx: cx, top: rect.minY + 1,
                      height: rect.height - 2, barW: 2.5, spacing: 7, ink: ink)
-        case .regiment:
             drawBars(count: 3, ctx: ctx, cx: cx, top: rect.minY + 1,
                      height: rect.height - 2, barW: 2.5, spacing: 7, ink: ink)
         case .brigade:
