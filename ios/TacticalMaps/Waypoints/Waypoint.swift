@@ -176,7 +176,7 @@ enum TacticalControlMeasure: String, Codable, Hashable, CaseIterable {
     // ---- Control-measure point/area symbols ----
     case axisOfAdvance
     case supportByFire, attackByFire
-    case landingZone, assemblyArea, rallyPoint, ambulanceExchange
+    case landingZone, assemblyArea, formUpPoint, rallyPoint, ambulanceExchange
 
     var displayName: String {
         switch self {
@@ -215,6 +215,7 @@ enum TacticalControlMeasure: String, Codable, Hashable, CaseIterable {
         case .attackByFire:           return "Attack by Fire"
         case .landingZone:            return "Landing Zone"
         case .assemblyArea:           return "Assembly Area"
+        case .formUpPoint:            return "Form Up Point"
         case .rallyPoint:             return "Rally Point"
         case .ambulanceExchange:      return "Ambulance Exchange Point"
         }
@@ -261,6 +262,7 @@ enum TacticalControlMeasure: String, Codable, Hashable, CaseIterable {
         case .attackByFire:           return "25152000"
         case .landingZone:            return "25150800"
         case .assemblyArea:           return "25150200"
+        case .formUpPoint:            return "25141200"
         case .rallyPoint:             return "25131400"
         case .ambulanceExchange:      return "25320101"
         }

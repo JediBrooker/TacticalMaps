@@ -104,7 +104,7 @@ struct WaypointEditSheet: View {
                     }
 
                 case .controlMeasure:
-                    Section("Tactical Control Measure") {
+                    Section("Tactical Task / Control Measure") {
                         Picker("Measure", selection: $control) {
                             ForEach(TacticalControlMeasure.allCases, id: \.self) { m in
                                 Text(m.displayName).tag(m)
@@ -221,7 +221,7 @@ private enum KindCategory: String, CaseIterable, Hashable {
         switch self {
         case .generic:        return "Generic"
         case .military:       return "Military"
-        case .controlMeasure: return "Control"
+        case .controlMeasure: return "Tasks"
         }
     }
 }

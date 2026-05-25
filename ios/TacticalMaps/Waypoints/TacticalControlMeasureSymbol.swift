@@ -10,7 +10,7 @@ struct TacticalControlMeasureSymbolView: View {
     var size: CGFloat = 56
 
     var body: some View {
-        Image(measure.assetName)
+        Image("AppSymbols/\(measure.assetName)")
             .renderingMode(.original)
             .resizable()
             .scaledToFit()
