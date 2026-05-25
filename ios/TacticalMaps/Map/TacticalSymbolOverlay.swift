@@ -61,6 +61,11 @@ private struct SymbolBubble: View {
             .scaleEffect(isDragging ? 1.08 : 1.0)
             .offset(dragOffset)
             .animation(.easeOut(duration: 0.12), value: isDragging)
+            // Restrict hit-testing to the symbol's bounds exactly —
+            // SwiftUI's default would include any rendering slack /
+            // shadow bleed, which was causing taps far from the
+            // visible symbol to register as a hit.
+            .contentShape(Rectangle())
             .onTapGesture {
                 mapVM.selectedWaypointID = waypoint.id
             }

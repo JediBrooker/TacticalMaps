@@ -3,29 +3,23 @@ import UIKit
 
 /// Renders a `TacticalControlMeasure` from the bundled PNG / SVG asset
 /// under `Assets.xcassets/AppSymbols/`. Pure black symbol on a
-/// transparent background. Stroke thickness comes from the **source
-/// asset itself** (dilated PNGs + thickened SVG strokes) — no
-/// render-time effects, so the lines stay crisp at any scale.
+/// transparent background. View bounds match the symbol size exactly
+/// so SwiftUI hit-testing in the overlay matches the visible pixels
+/// — no padding-induced tap hijack.
 struct TacticalControlMeasureSymbolView: View {
     let measure: TacticalControlMeasure
     /// Clockwise rotation in degrees. 0 = canonical orientation.
     var rotation: Double = 0
     var size: CGFloat = 56
-    /// Small bitmap padding so rotation doesn't clip the corners.
-    static let haloPadding: CGFloat = 2
 
     var body: some View {
-        let canvas = size + 2 * Self.haloPadding
-        return ZStack {
-            Image("AppSymbols/\(measure.assetName)")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(.black)
-                .frame(width: size, height: size)
-                .rotationEffect(.degrees(rotation))
-        }
-        .frame(width: canvas, height: canvas)
+        Image("AppSymbols/\(measure.assetName)")
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .foregroundStyle(.black)
+            .frame(width: size, height: size)
+            .rotationEffect(.degrees(rotation))
     }
 }
 
