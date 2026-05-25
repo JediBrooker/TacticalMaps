@@ -46,12 +46,12 @@ struct ContentView: View {
                 // map background dismisses; taps on the card or other HUD
                 // controls still pass through because they're rendered
                 // above this layer.
-                if mapVM.selectedControlMeasureWaypointID != nil {
+                if mapVM.selectedWaypointID != nil {
                     Color.black.opacity(0.001)
                         .ignoresSafeArea()
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            mapVM.selectedControlMeasureWaypointID = nil
+                            mapVM.selectedWaypointID = nil
                         }
                 }
 
@@ -149,15 +149,16 @@ struct ContentView: View {
                         .padding(.horizontal, 12)
                         .padding(.bottom, max(geo.safeAreaInsets.bottom, 8) + 6)
                     } else {
-                        // Floating rotate / resize controls for the
-                        // currently-tapped tactical control measure. Sits
-                        // above the centre pill so the pill never gets
-                        // covered when the card is open.
-                        if let id = mapVM.selectedControlMeasureWaypointID {
+                        // Floating controls card for the currently-tapped
+                        // waypoint (any kind). Sits above the centre pill
+                        // so the pill never gets covered when the card is
+                        // open.
+                        if let id = mapVM.selectedWaypointID {
                             SymbolControlsCard(
                                 waypointStore: waypointStore,
+                                mapVM: mapVM,
                                 waypointID: id,
-                                onDismiss: { mapVM.selectedControlMeasureWaypointID = nil }
+                                onDismiss: { mapVM.selectedWaypointID = nil }
                             )
                             .padding(.horizontal, 12)
                             .padding(.bottom, 8)
@@ -175,7 +176,7 @@ struct ContentView: View {
                     }
                 }
                 .animation(.easeInOut(duration: 0.18),
-                           value: mapVM.selectedControlMeasureWaypointID)
+                           value: mapVM.selectedWaypointID)
                 // HUD sits flush below the dynamic island. We let it bleed slightly
                 // into the safe-area region by using a small negative-ish padding,
                 // ignoring the safe area entirely on the top edge — the box's

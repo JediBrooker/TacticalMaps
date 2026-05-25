@@ -25,10 +25,11 @@ final class MapViewModel: ObservableObject {
     /// cleared to nil only when the centre changes by more than ~10m.
     @Published var centreElevation: Double? = nil
 
-    /// ID of the currently-selected tactical-control-measure waypoint, set
-    /// by the map's `didSelect` delegate. Drives the floating rotate /
-    /// resize controls card in `ContentView`. nil = no selection.
-    @Published var selectedControlMeasureWaypointID: UUID? = nil
+    /// ID of the currently-selected waypoint of any kind (generic,
+    /// military, or tactical control measure). Set by the map's
+    /// `didSelect` delegate. Drives the floating controls card in
+    /// `ContentView`. nil = no selection.
+    @Published var selectedWaypointID: UUID? = nil
 
     /// Current map metres-per-point (the smaller number is more zoomed in).
     /// Updated by `MapContainerView.Coordinator` whenever the camera

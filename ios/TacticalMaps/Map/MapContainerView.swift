@@ -119,7 +119,7 @@ struct MapContainerView: UIViewRepresentable {
         // dismisses the floating controls card (sets the ID to nil), we
         // tell MapKit to deselect the annotation so the user can re-tap
         // it later to bring the card back.
-        if mapVM.selectedControlMeasureWaypointID == nil
+        if mapVM.selectedWaypointID == nil
             && !mv.selectedAnnotations.isEmpty {
             context.coordinator.deselectAll(on: mv)
         }
@@ -341,18 +341,17 @@ struct MapContainerView: UIViewRepresentable {
         }
 
         private func handleSelection(of annotation: MKAnnotation?) {
-            guard let wp = annotation as? WaypointAnnotation,
-                  case .controlMeasure = wp.waypoint.kind else { return }
+            guard let wp = annotation as? WaypointAnnotation else { return }
             // Suppress the haptic when this is a refresh-driven
             // re-selection (same waypoint already on the model) — the
             // user didn't tap anything new.
-            let isReselection = mapVM.selectedControlMeasureWaypointID == wp.waypoint.id
+            let isReselection = mapVM.selectedWaypointID == wp.waypoint.id
             if !isReselection {
                 selectionHaptic.prepare()
                 selectionHaptic.impactOccurred()
             }
             DispatchQueue.main.async { [weak self] in
-                self?.mapVM.selectedControlMeasureWaypointID = wp.waypoint.id
+                self?.mapVM.selectedWaypointID = wp.waypoint.id
             }
         }
 
@@ -362,11 +361,10 @@ struct MapContainerView: UIViewRepresentable {
             // should stay open — the annotation will be re-added and
             // re-selected on the next line of `refresh()`.
             if isRebuildingAnnotations { return }
-            guard let wp = annotation as? WaypointAnnotation,
-                  case .controlMeasure = wp.waypoint.kind else { return }
+            guard let wp = annotation as? WaypointAnnotation else { return }
             DispatchQueue.main.async { [weak self] in
-                if self?.mapVM.selectedControlMeasureWaypointID == wp.waypoint.id {
-                    self?.mapVM.selectedControlMeasureWaypointID = nil
+                if self?.mapVM.selectedWaypointID == wp.waypoint.id {
+                    self?.mapVM.selectedWaypointID = nil
                 }
             }
         }
@@ -375,6 +373,29 @@ struct MapContainerView: UIViewRepresentable {
         func deselectAll(on mv: MKMapView) {
             for ann in mv.selectedAnnotations {
                 mv.deselectAnnotation(ann, animated: false)
+            }
+        }
+
+        // MARK: Drag-to-move
+
+        /// MKMapView fires this when the user long-presses an annotation
+        /// (`isDraggable = true`) and drags it. We persist the new
+        /// coordinate to the store on .ending so the change survives
+        /// the next refresh.
+        func mapView(_ mv: MKMapView,
+                     annotationView view: MKAnnotationView,
+                     didChange newState: MKAnnotationView.DragState,
+                     fromOldState oldState: MKAnnotationView.DragState) {
+            guard newState == .ending,
+                  let ann = view.annotation as? WaypointAnnotation
+            else { return }
+            // The annotation's `coordinate` was updated live by MapKit
+            // during the drag; commit it.
+            if let wp = waypointStore.waypoints.first(where: { $0.id == ann.waypoint.id }) {
+                var updated = wp
+                updated.latitude  = ann.coordinate.latitude
+                updated.longitude = ann.coordinate.longitude
+                waypointStore.update(updated)
             }
         }
 
@@ -516,10 +537,10 @@ struct MapContainerView: UIViewRepresentable {
             if fingerprint == lastRefreshFingerprint { return }
             lastRefreshFingerprint = fingerprint
 
-            // Capture the currently-selected control-measure annotation
-            // so we can re-select it after we tear annotations down — the
+            // Capture the currently-selected waypoint annotation so we
+            // can re-select it after we tear annotations down — the
             // user might be in the middle of dragging the rotate slider.
-            let selectedID = mapVM.selectedControlMeasureWaypointID
+            let selectedID = mapVM.selectedWaypointID
 
             isRebuildingAnnotations = true
             defer { isRebuildingAnnotations = false }
@@ -699,7 +720,12 @@ struct MapContainerView: UIViewRepresentable {
                     view.annotation = wp
                     view.image = MilitarySymbolRenderer.image(for: spec)
                     view.centerOffset = .zero
-                    view.canShowCallout = true
+                    // We drive selection via mapView(_:didSelect:) and
+                    // show our own controls card — disable the native
+                    // callout so it doesn't pop up alongside.
+                    view.canShowCallout = false
+                    // Long-press + drag to relocate.
+                    view.isDraggable = true
                     return view
                 }
                 if let measure = wp.waypoint.kind.controlMeasure {
@@ -734,6 +760,7 @@ struct MapContainerView: UIViewRepresentable {
                     // mapView(_:didSelect:) and show our own floating
                     // rotate / resize controls instead.
                     view.canShowCallout = false
+                    view.isDraggable = true
                     return view
                 }
                 let id = "waypoint"
@@ -742,7 +769,8 @@ struct MapContainerView: UIViewRepresentable {
                 view.annotation = wp
                 view.glyphImage  = UIImage(systemName: wp.waypoint.kind.sfSymbol)
                 view.markerTintColor = UIColor(wp.waypoint.kind.tint)
-                view.canShowCallout  = true
+                view.canShowCallout  = false
+                view.isDraggable = true
                 return view
             }
             if let dp = annotation as? DrawingPointAnnotation {
@@ -765,8 +793,15 @@ struct MapContainerView: UIViewRepresentable {
 
 final class WaypointAnnotation: NSObject, MKAnnotation {
     let waypoint: Waypoint
-    init(_ wp: Waypoint) { self.waypoint = wp }
-    var coordinate: CLLocationCoordinate2D { waypoint.coordinate }
+    /// Stored coordinate (KVO-compliant) so MKMapView can mutate it
+    /// during a drag (`isDraggable = true` on the annotation view).
+    /// On drag end the coordinator persists the new value back to
+    /// the store and the regular refresh path picks it up.
+    @objc dynamic var coordinate: CLLocationCoordinate2D
+    init(_ wp: Waypoint) {
+        self.waypoint = wp
+        self.coordinate = wp.coordinate
+    }
     var title: String? { waypoint.name }
     var subtitle: String? { waypoint.subtitle }
 }
