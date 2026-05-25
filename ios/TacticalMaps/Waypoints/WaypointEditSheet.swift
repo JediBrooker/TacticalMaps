@@ -64,9 +64,10 @@ struct WaypointEditSheet: View {
                         Spacer()
                         WaypointKindIcon(kind: currentKind, size: 64)
                             .frame(width: 80, height: 80)
+                            .padding(.vertical, 8)
                         Spacer()
                     }
-                    .listRowBackground(Color(.systemGroupedBackground))
+                    .listRowBackground(Color.white)
                 } header: { Text("Preview") }
 
                 Section("Type") {
