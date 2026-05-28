@@ -117,6 +117,7 @@ fun GoogleMapScreen(
     onVertexMoved: (featureId: String, vertexIndex: Int, lat: Double, lng: Double) -> Unit = { _, _, _, _ -> },
     onVertexInserted: (featureId: String, atIndex: Int, lat: Double, lng: Double) -> Unit = { _, _, _, _ -> },
     onVertexDeleted: (featureId: String, vertexIndex: Int) -> Unit = { _, _ -> },
+    onShapeMoved: (featureId: String, deltaLat: Double, deltaLng: Double) -> Unit = { _, _, _ -> },
     onMapTap: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -187,6 +188,7 @@ fun GoogleMapScreen(
     val currentOnVertexMoved = rememberUpdatedState(onVertexMoved)
     val currentOnVertexInserted = rememberUpdatedState(onVertexInserted)
     val currentOnVertexDeleted = rememberUpdatedState(onVertexDeleted)
+    val currentOnShapeMoved = rememberUpdatedState(onShapeMoved)
     val currentOnMapTap = rememberUpdatedState(onMapTap)
     val currentDrawingInputEnabled = rememberUpdatedState(drawingInputEnabled)
     val currentCalibrationInputEnabled = rememberUpdatedState(calibrationInputEnabled)
@@ -294,6 +296,17 @@ fun GoogleMapScreen(
             onVertexInserted = currentOnVertexInserted.value,
             onVertexDeleted = currentOnVertexDeleted.value
         )
+
+        /// Translate handle — drags the whole shape (all vertices)
+        /// by the same lat/lng delta. Renders at the shape's
+        /// labelAnchor (centroid for polygons, mid-segment for
+        /// lines) so the user has a stable grab-point that follows
+        /// the shape as it moves.
+        TranslateHandleOverlay(
+            feature = selectedDrawing.takeUnless { drawingInputEnabled },
+            cameraPositionState = cameraPositionState,
+            onShapeMoved = currentOnShapeMoved.value
+        )
     }
 }
 
@@ -365,6 +378,140 @@ private fun VertexHandlesOverlay(
                 onVertexInserted(feature.id, insertIndex, moved.latitude, moved.longitude)
             }
         )
+    }
+}
+
+/// A single grab-handle at the selected drawing's labelAnchor that
+/// translates ALL of the shape's vertices by the same lat/lng delta.
+/// Mirrors the old osmdroid "long-press a polyline to drag the whole
+/// shape" affordance but in a more discoverable place — the user can
+/// see and aim for the handle rather than guessing.
+@Composable
+private fun TranslateHandleOverlay(
+    feature: DrawingFeature?,
+    cameraPositionState: CameraPositionState,
+    onShapeMoved: (featureId: String, deltaLat: Double, deltaLng: Double) -> Unit
+) {
+    if (feature == null) return
+    val anchor = feature.labelAnchor ?: return
+    cameraPositionState.position
+    val projection = cameraPositionState.projection ?: return
+    val density = LocalDensity.current
+    val sizePx = with(density) { 52.dp.roundToPx() }
+    val screen = projection.toScreenLocation(LatLng(anchor.latitude, anchor.longitude))
+
+    val currentOnShapeMoved = rememberUpdatedState(onShapeMoved)
+    var dragOffset by remember(feature.id) { mutableStateOf(Offset.Zero) }
+
+    Box(
+        modifier = Modifier
+            .offset {
+                IntOffset(
+                    screen.x - sizePx / 2 + dragOffset.x.roundToInt(),
+                    screen.y - sizePx / 2 + dragOffset.y.roundToInt()
+                )
+            }
+            .size(with(density) { sizePx.toDp() })
+            .pointerInput(feature.id) {
+                detectDragGestures(
+                    onDragEnd = {
+                        val dx = dragOffset.x
+                        val dy = dragOffset.y
+                        dragOffset = Offset.Zero
+                        val proj = cameraPositionState.projection ?: return@detectDragGestures
+                        val before = proj.fromScreenLocation(Point(screen.x, screen.y))
+                        val after = proj.fromScreenLocation(
+                            Point((screen.x + dx).roundToInt(), (screen.y + dy).roundToInt())
+                        )
+                        currentOnShapeMoved.value(
+                            feature.id,
+                            after.latitude - before.latitude,
+                            after.longitude - before.longitude
+                        )
+                    },
+                    onDragCancel = { dragOffset = Offset.Zero }
+                ) { change, drag ->
+                    change.consume()
+                    dragOffset += drag
+                }
+            }
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val orange = Color(0xFFFFA63D)
+            val white = Color.White
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val r = (size.width / 2f) - 3.dp.toPx()
+            /// Solid orange disc with a white "+" four-way arrow icon
+            /// so the affordance reads "drag to move".
+            drawCircle(orange, r, center)
+            drawCircle(white, r, center, style = Stroke(width = 2.5.dp.toPx()))
+            val arm = r * 0.55f
+            val headLen = 3.dp.toPx()
+            val stroke = 2.5.dp.toPx()
+            // Vertical arrow shaft
+            drawLine(
+                white,
+                Offset(center.x, center.y - arm),
+                Offset(center.x, center.y + arm),
+                strokeWidth = stroke
+            )
+            // Horizontal arrow shaft
+            drawLine(
+                white,
+                Offset(center.x - arm, center.y),
+                Offset(center.x + arm, center.y),
+                strokeWidth = stroke
+            )
+            // Four arrowheads — tiny V's at each end
+            drawLine(
+                white,
+                Offset(center.x, center.y - arm),
+                Offset(center.x - headLen, center.y - arm + headLen),
+                strokeWidth = stroke
+            )
+            drawLine(
+                white,
+                Offset(center.x, center.y - arm),
+                Offset(center.x + headLen, center.y - arm + headLen),
+                strokeWidth = stroke
+            )
+            drawLine(
+                white,
+                Offset(center.x, center.y + arm),
+                Offset(center.x - headLen, center.y + arm - headLen),
+                strokeWidth = stroke
+            )
+            drawLine(
+                white,
+                Offset(center.x, center.y + arm),
+                Offset(center.x + headLen, center.y + arm - headLen),
+                strokeWidth = stroke
+            )
+            drawLine(
+                white,
+                Offset(center.x - arm, center.y),
+                Offset(center.x - arm + headLen, center.y - headLen),
+                strokeWidth = stroke
+            )
+            drawLine(
+                white,
+                Offset(center.x - arm, center.y),
+                Offset(center.x - arm + headLen, center.y + headLen),
+                strokeWidth = stroke
+            )
+            drawLine(
+                white,
+                Offset(center.x + arm, center.y),
+                Offset(center.x + arm - headLen, center.y - headLen),
+                strokeWidth = stroke
+            )
+            drawLine(
+                white,
+                Offset(center.x + arm, center.y),
+                Offset(center.x + arm - headLen, center.y + headLen),
+                strokeWidth = stroke
+            )
+        }
     }
 }
 

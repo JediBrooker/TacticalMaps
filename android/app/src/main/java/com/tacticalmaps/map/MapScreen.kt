@@ -413,6 +413,20 @@ fun MapScreen(vm: MapViewModel = viewModel()) {
                         drawingStore.updateFeature(feature.withVertexInserted(atIndex, lat, lng))
                     }
                 },
+                onShapeMoved = { featureId, deltaLat, deltaLng ->
+                    drawingDocument.features.firstOrNull { it.id == featureId }?.let { feature ->
+                        drawingStore.updateFeature(
+                            feature.copy(
+                                points = feature.points.map { point ->
+                                    point.copy(
+                                        latitude = point.latitude + deltaLat,
+                                        longitude = point.longitude + deltaLng
+                                    )
+                                }
+                            )
+                        )
+                    }
+                },
                 onVertexDeleted = { featureId, vertexIndex ->
                     drawingDocument.features.firstOrNull { it.id == featureId }?.let { feature ->
                         feature.withVertexRemovedOrNull(vertexIndex)?.let {
