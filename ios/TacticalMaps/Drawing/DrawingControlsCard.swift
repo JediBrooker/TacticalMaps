@@ -11,6 +11,10 @@ struct DrawingControlsCard: View {
     @State private var showDeleteConfirm = false
     @State private var showNameAlert     = false
     @State private var draftName: String = ""
+    /// Whether the rotation / width / height sliders are visible. They
+    /// take up most of the card's vertical space and aren't needed for
+    /// every edit, so they hide behind a "Transform" toggle by default.
+    @State private var showTransforms    = false
 
     var body: some View {
         if let shape = drawingStore.shapes.first(where: { $0.id == drawingID }) {
@@ -21,10 +25,12 @@ struct DrawingControlsCard: View {
     private func card(for shape: DrawingShape) -> some View {
         VStack(spacing: 8) {
             header(for: shape)
-            // Geometric sliders mirror the task-graphic controls card so
-            // points/lines/areas resize and rotate around their own
-            // centroid without losing the original vertices.
-            if shape.kind != .point {
+            // Rotation / width / height sliders live behind a toggle —
+            // the compact card just shows colour, dash, layer, delete
+            // unless the user explicitly asks to transform the shape.
+            // Points have no transform controls so the toggle is
+            // hidden for them too.
+            if shape.kind != .point && showTransforms {
                 rotationRow(for: shape)
                 widthRow(for: shape)
                 heightRow(for: shape)
@@ -315,6 +321,9 @@ struct DrawingControlsCard: View {
         HStack(spacing: 8) {
             colourButton(for: shape)
             dashedToggle(for: shape)
+            if shape.kind != .point {
+                transformToggle()
+            }
             layerPill(for: shape)
             Spacer(minLength: 0)
             Button {
@@ -337,5 +346,30 @@ struct DrawingControlsCard: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    /// Toggle the rotation / width / height sliders on or off. Icon
+    /// flips between "show" and "hide" so the user can tell at a
+    /// glance whether the sliders are currently expanded.
+    private func transformToggle() -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                showTransforms.toggle()
+            }
+        } label: {
+            ZStack {
+                Circle().fill(.white.opacity(showTransforms ? 0.22 : 0.10))
+                Image(systemName: "slider.horizontal.3")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.primary)
+            }
+            .frame(width: 30, height: 30)
+            .overlay(
+                Circle().stroke(.white.opacity(showTransforms ? 0.5 : 0), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Transform controls")
+        .accessibilityValue(showTransforms ? "Expanded" : "Collapsed")
     }
 }

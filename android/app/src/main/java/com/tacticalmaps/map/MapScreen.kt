@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -1130,6 +1131,12 @@ private fun DrawingFeatureEditBar(
 ) {
     var colorMenuOpen by remember { mutableStateOf(false) }
     var nameDialogOpen by remember { mutableStateOf(false) }
+    // Rotation / W / H sliders take up most of the card's vertical
+    // space and aren't needed for every edit, so they hide behind a
+    // "Transform" toggle by default. Points don't get the toggle
+    // (they have no transform to apply).
+    var showTransforms by remember(feature.id) { mutableStateOf(false) }
+    val hasTransforms = feature.geometry != DrawingGeometry.POINT
 
     Column(
         modifier = modifier
@@ -1188,31 +1195,33 @@ private fun DrawingFeatureEditBar(
             }
         }
 
-        CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
-            DrawingTransformSliderRow(
-                icon = Icons.AutoMirrored.Filled.RotateRight,
-                value = normalizedDrawingDegrees(feature.rotationDegrees).toFloat(),
-                valueLabel = "${normalizedDrawingDegrees(feature.rotationDegrees).toInt()}°",
-                range = 0f..360f,
-                onChange = { onFeatureChange(feature.copy(rotationDegrees = it.toDouble())) },
-                onReset = { onFeatureChange(feature.copy(rotationDegrees = 0.0)) }
-            )
-            DrawingTransformSliderRow(
-                icon = Icons.Default.SwapHoriz,
-                value = feature.scaleX.toFloat().coerceIn(0.15f, 6f),
-                valueLabel = "%.2fx".format(feature.scaleX),
-                range = 0.15f..6f,
-                onChange = { onFeatureChange(feature.copy(scaleX = it.toDouble())) },
-                onReset = { onFeatureChange(feature.copy(scaleX = 1.0)) }
-            )
-            DrawingTransformSliderRow(
-                icon = Icons.Default.SwapVert,
-                value = feature.scaleY.toFloat().coerceIn(0.15f, 6f),
-                valueLabel = "%.2fx".format(feature.scaleY),
-                range = 0.15f..6f,
-                onChange = { onFeatureChange(feature.copy(scaleY = it.toDouble())) },
-                onReset = { onFeatureChange(feature.copy(scaleY = 1.0)) }
-            )
+        if (hasTransforms && showTransforms) {
+            CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
+                DrawingTransformSliderRow(
+                    icon = Icons.AutoMirrored.Filled.RotateRight,
+                    value = normalizedDrawingDegrees(feature.rotationDegrees).toFloat(),
+                    valueLabel = "${normalizedDrawingDegrees(feature.rotationDegrees).toInt()}°",
+                    range = 0f..360f,
+                    onChange = { onFeatureChange(feature.copy(rotationDegrees = it.toDouble())) },
+                    onReset = { onFeatureChange(feature.copy(rotationDegrees = 0.0)) }
+                )
+                DrawingTransformSliderRow(
+                    icon = Icons.Default.SwapHoriz,
+                    value = feature.scaleX.toFloat().coerceIn(0.15f, 6f),
+                    valueLabel = "%.2fx".format(feature.scaleX),
+                    range = 0.15f..6f,
+                    onChange = { onFeatureChange(feature.copy(scaleX = it.toDouble())) },
+                    onReset = { onFeatureChange(feature.copy(scaleX = 1.0)) }
+                )
+                DrawingTransformSliderRow(
+                    icon = Icons.Default.SwapVert,
+                    value = feature.scaleY.toFloat().coerceIn(0.15f, 6f),
+                    valueLabel = "%.2fx".format(feature.scaleY),
+                    range = 0.15f..6f,
+                    onChange = { onFeatureChange(feature.copy(scaleY = it.toDouble())) },
+                    onReset = { onFeatureChange(feature.copy(scaleY = 1.0)) }
+                )
+            }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1242,6 +1251,25 @@ private fun DrawingFeatureEditBar(
                     onFeatureChange(feature.copy(strokeStyle = feature.strokeStyle.next()))
                 }
             )
+            if (hasTransforms) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Color.White.copy(alpha = if (showTransforms) 0.22f else 0.10f)
+                        )
+                        .clickable { showTransforms = !showTransforms },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Tune,
+                        contentDescription = "Toggle transform sliders",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
             LayerSelectorButton(
                 layers = layers,
                 selectedLayerId = feature.layerId,
