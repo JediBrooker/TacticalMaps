@@ -1,5 +1,6 @@
 package com.tacticalmaps.map
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +21,9 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Flag
@@ -62,6 +66,7 @@ import com.tacticalmaps.waypoints.SymbolAffiliation
 import com.tacticalmaps.waypoints.SymbolEchelon
 import com.tacticalmaps.waypoints.SymbolFunction
 import com.tacticalmaps.waypoints.TacticalControlMeasure
+import com.tacticalmaps.waypoints.Waypoint
 import com.tacticalmaps.waypoints.WaypointKind
 
 enum class SymbolEditorMode { WAYPOINT, MILITARY, TASK }
@@ -135,7 +140,16 @@ fun SymbolEditorDialog(
                 EditorTopBar(
                     title = title,
                     subtitle = currentKind.displayName,
-                    icon = when (mode) {
+                    /// Render a LIVE preview of the actual symbol the
+                    /// user is about to place — the rendered military
+                    /// frame / function glyph for units, or the task
+                    /// graphic for tactical tasks. Updates whenever
+                    /// affiliation / echelon / function / HQ / task
+                    /// changes below. Generic waypoints fall back to
+                    /// the pin glyph because there's no per-instance
+                    /// symbol to show.
+                    kind = currentKind,
+                    fallbackIcon = when (mode) {
                         SymbolEditorMode.WAYPOINT -> Icons.Default.LocationOn
                         SymbolEditorMode.MILITARY -> Icons.Default.Security
                         SymbolEditorMode.TASK -> Icons.Default.Flag
@@ -245,7 +259,8 @@ fun SymbolEditorDialog(
 private fun EditorTopBar(
     title: String,
     subtitle: String,
-    icon: ImageVector,
+    kind: WaypointKind,
+    fallbackIcon: ImageVector,
     onDismiss: () -> Unit
 ) {
     Row(
@@ -254,14 +269,7 @@ private fun EditorTopBar(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .background(Color.White, RoundedCornerShape(8.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = Color.Black)
-        }
+        SymbolPreviewTile(kind = kind, fallbackIcon = fallbackIcon)
         Spacer(Modifier.size(12.dp))
         Column(Modifier.weight(1f)) {
             Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -275,6 +283,60 @@ private fun EditorTopBar(
         }
         IconButton(onClick = onDismiss) {
             Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+        }
+    }
+}
+
+/// White-backed tile that shows the symbol that will be placed if the
+/// user taps "Place". For military units this is the rendered SIDC
+/// frame + function glyph; for tactical tasks it's the task graphic.
+/// The background is white in both cases — military glyphs already
+/// render on white in the SDIC spec, and task graphics are black on
+/// transparent so they need a non-dark backdrop to actually read.
+@Composable
+private fun SymbolPreviewTile(
+    kind: WaypointKind,
+    fallbackIcon: ImageVector
+) {
+    val context = LocalContext.current
+    /// `Waypoint` is the type SymbolIconFactory expects — assemble a
+    /// throwaway one with default rotation/scale so its bitmap is in
+    /// the same shape the on-map renderer would draw.
+    val bitmap = remember(kind) {
+        if (kind is WaypointKind.Generic) return@remember null
+        val placeholder = Waypoint(
+            name = "",
+            latitude = 0.0,
+            longitude = 0.0,
+            kind = kind
+        )
+        val drawable = SymbolIconFactory.drawableFor(context, placeholder)
+        val w = drawable.intrinsicWidth.coerceAtLeast(1)
+        val h = drawable.intrinsicHeight.coerceAtLeast(1)
+        val bmp = android.graphics.Bitmap.createBitmap(
+            w, h, android.graphics.Bitmap.Config.ARGB_8888
+        )
+        drawable.setBounds(0, 0, w, h)
+        drawable.draw(android.graphics.Canvas(bmp))
+        bmp
+    }
+
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .background(Color.White, RoundedCornerShape(8.dp))
+            .padding(4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+        } else {
+            Icon(fallbackIcon, contentDescription = null, tint = Color.Black)
         }
     }
 }
