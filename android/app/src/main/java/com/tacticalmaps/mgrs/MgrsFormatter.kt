@@ -9,7 +9,7 @@ import mil.nga.mgrs.grid.GridType
  * WGS84; MGRS strings are presentation only.
  *
  * Inputs are bare (lat, lng) doubles so the formatter doesn't depend
- * on Google Maps or osmdroid types.
+ * on any particular map SDK.
  */
 object MgrsFormatter {
 

@@ -1,8 +1,18 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
+
+val localProperties = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY")
+    ?: System.getenv("MAPS_API_KEY")
+    ?: ""
 
 val releaseStoreFilePath = providers.gradleProperty("TACTICALMAPS_RELEASE_STORE_FILE")
     .orElse(providers.environmentVariable("TACTICALMAPS_RELEASE_STORE_FILE"))
@@ -29,6 +39,9 @@ android {
         versionName = "0.1.2"
 
         vectorDrawables { useSupportLibrary = true }
+
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+        buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
     }
 
     signingConfigs {
@@ -86,9 +99,15 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
-    // OpenStreetMap tiles via osmdroid: no map API key required.
-    implementation("org.osmdroid:osmdroid-android:6.1.18")
+    // SVG rasteriser used by SymbolIconFactory to render the milsymbol
+    // assets into BitmapDescriptors for Google Maps markers.
     implementation("com.caverock:androidsvg-aar:1.4")
+
+    // Google Maps SDK + Compose bindings. API key is read from
+    // local.properties (MAPS_API_KEY=…) or the MAPS_API_KEY env var.
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+    implementation("com.google.maps.android:android-maps-utils:3.8.2")
 
     implementation("com.google.android.gms:play-services-location:21.3.0")
 

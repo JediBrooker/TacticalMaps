@@ -164,10 +164,13 @@ swift scripts/generate_icon.swift
 brew install --cask android-studio android-commandlinetools
 open -a "Android Studio"   # Run the first-launch SDK wizard + create an AVD
 
-# 2. Get a Google Maps API key (free)
+# 2. Get a Google Maps API key
 #    https://developers.google.com/maps/documentation/android-sdk/get-api-key
-#    Add it to ~/.gradle/gradle.properties (kept out of the repo):
+#    Enable "Maps SDK for Android" on the project. Restrict the key by
+#    Android package (com.tacticalmaps) + debug + release SHA-1.
+#    Add the key to android/local.properties (gitignored):
 #       MAPS_API_KEY=AIza…
+#    (Falls back to the MAPS_API_KEY env var if the property is unset.)
 
 # 3. Open in Studio
 open -a "Android Studio" android

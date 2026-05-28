@@ -10,10 +10,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,12 +37,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
@@ -87,8 +95,23 @@ fun SymbolEditorDialog(
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
+        /// `DialogProperties.decorFitsSystemWindows = false` alone isn't
+        /// enough on every Compose / device combination — explicitly tell
+        /// the dialog's underlying Window not to inset for system bars so
+        /// `WindowInsets.systemBars` reports the real bottom inset, and
+        /// our padding below leaves room for the gesture pill.
+        val dialogView = LocalView.current
+        SideEffect {
+            (dialogView.parent as? DialogWindowProvider)?.window?.let {
+                WindowCompat.setDecorFitsSystemWindows(it, false)
+            }
+        }
+
         Surface(
             modifier = if (fullScreen) {
                 Modifier.fillMaxSize()
@@ -104,7 +127,7 @@ fun SymbolEditorDialog(
                 modifier = if (fullScreen) {
                     Modifier
                         .fillMaxSize()
-                        .statusBarsPadding()
+                        .windowInsetsPadding(WindowInsets.statusBars)
                 } else {
                     Modifier.fillMaxWidth()
                 }
@@ -121,7 +144,12 @@ fun SymbolEditorDialog(
                 )
 
                 LazyColumn(
-                    modifier = if (fullScreen) Modifier.weight(1f) else Modifier.heightIn(max = 440.dp),
+                    modifier = if (fullScreen) {
+                        Modifier
+                            .weight(1f)
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .imePadding()
+                    } else Modifier.heightIn(max = 440.dp),
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
@@ -166,39 +194,46 @@ fun SymbolEditorDialog(
                             TaskTypeField(measure = measure, onChange = { measure = it })
                         }
                     }
-                }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Cancel")
-                    }
-                    Button(
-                        onClick = {
-                            val trimmed = name.trim()
-                            val resolved = if (trimmed == initialKind.displayName) {
-                                currentKind.displayName
-                            } else {
-                                trimmed.ifEmpty { currentKind.displayName }
+                    /// Action buttons live inside the scrollable LazyColumn
+                    /// so they always sit directly under the last form
+                    /// field rather than pinned to the screen bottom, where
+                    /// the gesture pill clipped them on devices whose
+                    /// dialog window doesn't honour edge-to-edge insets.
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onDismiss,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Cancel")
                             }
-                            onConfirm(resolved, currentKind)
-                        },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0A84FF),
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Text(actionLabel, fontWeight = FontWeight.SemiBold)
+                            Button(
+                                onClick = {
+                                    val trimmed = name.trim()
+                                    val resolved = if (trimmed == initialKind.displayName) {
+                                        currentKind.displayName
+                                    } else {
+                                        trimmed.ifEmpty { currentKind.displayName }
+                                    }
+                                    onConfirm(resolved, currentKind)
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF0A84FF),
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text(actionLabel, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     }
                 }
             }

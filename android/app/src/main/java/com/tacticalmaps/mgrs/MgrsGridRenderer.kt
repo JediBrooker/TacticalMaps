@@ -6,7 +6,6 @@ import mil.nga.mgrs.MGRS
 import mil.nga.mgrs.grid.GridType
 import mil.nga.mgrs.grid.Grids
 import mil.nga.mgrs.gzd.GridZones
-import org.osmdroid.util.GeoPoint
 import kotlin.math.abs
 import kotlin.math.log2
 import kotlin.math.roundToInt
@@ -27,9 +26,14 @@ object MgrsGridRenderer {
     val INK_COLOR: Int = 0xD9303030.toInt()
     val LABEL_TEXT_COLOR: Int = 0xFF282828.toInt()
 
+    /// Endpoint of one grid line. WGS84 lat / lng — independent of any
+    /// particular map SDK so the renderer can feed either the Google
+    /// Maps surface (LatLng) or future basemap types.
+    data class Endpoint(val latitude: Double, val longitude: Double)
+
     data class Segment(
-        val start: GeoPoint,
-        val end: GeoPoint,
+        val start: Endpoint,
+        val end: Endpoint,
         val type: GridType
     )
 
@@ -89,8 +93,8 @@ object MgrsGridRenderer {
                     val p1 = degLine.point1
                     val p2 = degLine.point2
                     segOut += Segment(
-                        start = GeoPoint(p1.latitude, p1.longitude),
-                        end   = GeoPoint(p2.latitude, p2.longitude),
+                        start = Endpoint(p1.latitude, p1.longitude),
+                        end   = Endpoint(p2.latitude, p2.longitude),
                         type  = type
                     )
 

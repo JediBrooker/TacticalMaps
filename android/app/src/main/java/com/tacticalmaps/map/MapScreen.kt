@@ -362,84 +362,66 @@ fun MapScreen(vm: MapViewModel = viewModel()) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        OsmMap(
-            modifier = Modifier.fillMaxSize(),
-            waypoints = waypoints,
-            mapSource = mapSource,
-            drawings = drawingDocument.features,
-            drawingLayers = drawingDocument.layers,
-            draftDrawing = draftDrawing,
-            drawingInputEnabled = activeDrawTool != null || measureSession.isActive,
-            unitLabelsVisible = unitLabelsVisible,
-            taskLabelsVisible = taskLabelsVisible,
-            drawingLabelsVisible = drawingLabelsVisible,
-            mgrsGridVisible = mgrsGridVisible,
-            selectedDrawingId = selectedDrawingId,
-            selectedWaypointId = selectedWaypointId,
-            calibrationInputEnabled = isCalibratingPdf,
-            pendingTarget = pendingTarget,
-            onConsumePendingTarget = vm::consumePendingCameraTarget,
-            onCameraIdle = { lat, lng, byUser ->
-                vm.onCameraIdle(lat, lng, byUser)
-            },
-            onBearingChanged = vm::onMapBearingChanged,
-            onMarkerTap = { wp ->
-                selectedDrawingId = null
-                vm.selectWaypoint(wp.id)
-            },
-            onWaypointMoved = { wp, lat, lng ->
-                waypointStore.update(wp.copy(latitude = lat, longitude = lng))
-            },
-            onDrawingTap = ::handleDrawingTap,
-            onCalibrationTap = { lat, lng ->
-                val tap = pdfSource?.pdfPointFor(lat, lng)
-                if (tap != null) {
-                    pendingCalibrationTap = tap
-                } else {
-                    Toast.makeText(context, "Tap inside the PDF map.", Toast.LENGTH_SHORT).show()
-                }
-            },
-            onDrawingFeatureTap = { featureId ->
-                vm.selectWaypoint(null)
-                selectedDrawingId = featureId
-            },
-            onDrawingMove = { featureId, deltaLat, deltaLng ->
-                drawingDocument.features.firstOrNull { it.id == featureId }?.let { feature ->
-                    drawingStore.updateFeature(
-                        feature.copy(
-                            points = feature.points.map { point ->
-                                point.copy(
-                                    latitude = point.latitude + deltaLat,
-                                    longitude = point.longitude + deltaLng
-                                )
-                            }
-                        )
-                    )
-                    selectedDrawingId = featureId
-                }
-            },
-            onVertexMoved = { featureId, vertexIndex, lat, lng ->
-                drawingDocument.features.firstOrNull { it.id == featureId }?.let { feature ->
-                    drawingStore.updateFeature(feature.withVertexMoved(vertexIndex, lat, lng))
-                }
-            },
-            onVertexInserted = { featureId, atIndex, lat, lng ->
-                drawingDocument.features.firstOrNull { it.id == featureId }?.let { feature ->
-                    drawingStore.updateFeature(feature.withVertexInserted(atIndex, lat, lng))
-                }
-            },
-            onVertexDeleted = { featureId, vertexIndex ->
-                drawingDocument.features.firstOrNull { it.id == featureId }?.let { feature ->
-                    feature.withVertexRemovedOrNull(vertexIndex)?.let {
-                        drawingStore.updateFeature(it)
+        GoogleMapScreen(
+                modifier = Modifier.fillMaxSize(),
+                waypoints = waypoints,
+                mapSource = mapSource,
+                drawings = drawingDocument.features,
+                drawingLayers = drawingDocument.layers,
+                draftDrawing = draftDrawing,
+                drawingInputEnabled = activeDrawTool != null || measureSession.isActive,
+                calibrationInputEnabled = isCalibratingPdf,
+                mgrsGridVisible = mgrsGridVisible,
+                selectedDrawingId = selectedDrawingId,
+                selectedWaypointId = selectedWaypointId,
+                pendingTarget = pendingTarget,
+                onConsumePendingTarget = vm::consumePendingCameraTarget,
+                onCameraIdle = { lat, lng, byUser ->
+                    vm.onCameraIdle(lat, lng, byUser)
+                },
+                onBearingChanged = vm::onMapBearingChanged,
+                onMarkerTap = { wp ->
+                    selectedDrawingId = null
+                    vm.selectWaypoint(wp.id)
+                },
+                onWaypointMoved = { wp, lat, lng ->
+                    waypointStore.update(wp.copy(latitude = lat, longitude = lng))
+                },
+                onDrawingTap = ::handleDrawingTap,
+                onCalibrationTap = { lat, lng ->
+                    val tap = pdfSource?.pdfPointFor(lat, lng)
+                    if (tap != null) {
+                        pendingCalibrationTap = tap
+                    } else {
+                        Toast.makeText(context, "Tap inside the PDF map.", Toast.LENGTH_SHORT).show()
                     }
+                },
+                onDrawingFeatureTap = { featureId ->
+                    vm.selectWaypoint(null)
+                    selectedDrawingId = featureId
+                },
+                onVertexMoved = { featureId, vertexIndex, lat, lng ->
+                    drawingDocument.features.firstOrNull { it.id == featureId }?.let { feature ->
+                        drawingStore.updateFeature(feature.withVertexMoved(vertexIndex, lat, lng))
+                    }
+                },
+                onVertexInserted = { featureId, atIndex, lat, lng ->
+                    drawingDocument.features.firstOrNull { it.id == featureId }?.let { feature ->
+                        drawingStore.updateFeature(feature.withVertexInserted(atIndex, lat, lng))
+                    }
+                },
+                onVertexDeleted = { featureId, vertexIndex ->
+                    drawingDocument.features.firstOrNull { it.id == featureId }?.let { feature ->
+                        feature.withVertexRemovedOrNull(vertexIndex)?.let {
+                            drawingStore.updateFeature(it)
+                        }
+                    }
+                },
+                onMapTap = {
+                    if (selectedWaypointId != null) vm.selectWaypoint(null)
+                    selectedDrawingId = null
                 }
-            },
-            onMapTap = {
-                if (selectedWaypointId != null) vm.selectWaypoint(null)
-                selectedDrawingId = null
-            }
-        )
+            )
 
         CrosshairOverlay()
 
@@ -798,7 +780,12 @@ private fun CircleHudButton(
 
 @Composable
 private fun CompassChip(mapOrientationDegrees: Double) {
-    val screenUpBearingDegrees = normalizedDegrees(-mapOrientationDegrees)
+    /// `mapOrientationDegrees` is the camera bearing — the compass
+    /// bearing of where screen-up points (0 = north up, 90 = east up).
+    /// The displayed mils reading matches that bearing; the needle
+    /// rotates counter to it so it keeps pointing at true north as
+    /// the map turns.
+    val screenUpBearingDegrees = normalizedDegrees(mapOrientationDegrees)
     val mils = ((screenUpBearingDegrees * (6400.0 / 360.0)).toInt()) % 6400
     Box(
         modifier = Modifier
