@@ -528,19 +528,45 @@ struct MapContainerView: UIViewRepresentable {
             }
         }
 
+        /// Tracks whether each in-flight vertex-handle long-press has
+        /// seen any movement. Lets the handler defer the delete action
+        /// to lift-time and skip it if the user's finger moved (which
+        /// means the pan recogniser is also active — the user is
+        /// dragging, not deleting).
+        private var vertexLongPressMoved: [ObjectIdentifier: Bool] = [:]
+
         @objc func handleVertexLongPress(_ g: UILongPressGestureRecognizer) {
-            guard g.state == .began,
-                  let view = g.view as? MKAnnotationView,
-                  let h = view.annotation as? DrawingVertexHandleAnnotation,
-                  !h.isMidpoint,
-                  var shape = drawingStore.shapes.first(where: { $0.id == h.shapeID })
-            else { return }
-            if shape.removeEffectiveVertex(at: h.vertexIndex) {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                drawingStore.update(shape)
-            } else {
-                // Tell the user why nothing happened.
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            let key = ObjectIdentifier(g)
+            switch g.state {
+            case .began:
+                vertexLongPressMoved[key] = false
+                // Subtle "you're holding it" haptic so the user knows
+                // the hold has been registered — they can either lift
+                // (delete) or drag (move) from here.
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            case .changed:
+                vertexLongPressMoved[key] = true
+            case .ended:
+                let moved = vertexLongPressMoved[key] ?? false
+                vertexLongPressMoved.removeValue(forKey: key)
+                // Movement during the hold means the user was dragging —
+                // the pan recogniser handled the move; skip delete.
+                if moved { return }
+                guard let view = g.view as? MKAnnotationView,
+                      let h = view.annotation as? DrawingVertexHandleAnnotation,
+                      !h.isMidpoint,
+                      var shape = drawingStore.shapes.first(where: { $0.id == h.shapeID })
+                else { return }
+                if shape.removeEffectiveVertex(at: h.vertexIndex) {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    drawingStore.update(shape)
+                } else {
+                    UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                }
+            case .cancelled, .failed:
+                vertexLongPressMoved.removeValue(forKey: key)
+            default:
+                break
             }
         }
 
@@ -1478,21 +1504,24 @@ struct MapContainerView: UIViewRepresentable {
                 // so handlers don't stack on reuse.
                 view.gestureRecognizers?.forEach { view.removeGestureRecognizer($0) }
 
-                // Pan = instant drag. Fires on the very first movement
-                // (no long-press warmup) so the handle behaves like a
-                // standard drawing-app vertex.
+                // Pan = drag. Fires on the very first movement so the
+                // user can pick up the handle immediately, OR continue
+                // a drag that started after a hold (long-press and
+                // pan recognise simultaneously below).
                 let pan = UIPanGestureRecognizer(target: self, action: #selector(handleVertexPan(_:)))
+                pan.delegate = self
                 view.addGestureRecognizer(pan)
 
                 // Long-press = delete (real vertices only — midpoint
                 // handles don't represent a stored vertex so there's
-                // nothing to remove). 0.6s lets it fire reliably while
-                // still giving a quick tap-to-insert / drag enough
-                // headroom.
+                // nothing to remove). The handler only acts on .ended
+                // and only if NO movement happened during the press,
+                // so hold-then-drag is correctly treated as a drag.
                 if !h.isMidpoint {
                     let lp = UILongPressGestureRecognizer(target: self, action: #selector(handleVertexLongPress(_:)))
-                    lp.minimumPressDuration = 0.6
-                    lp.allowableMovement = 8
+                    lp.minimumPressDuration = 0.55
+                    lp.allowableMovement = .greatestFiniteMagnitude
+                    lp.delegate = self
                     view.addGestureRecognizer(lp)
                 }
                 return view
