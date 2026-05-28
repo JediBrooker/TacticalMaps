@@ -14,7 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Straighten
-import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -83,7 +83,7 @@ fun MeasureToolbar(
                 .size(30.dp)
                 .background(Color.White.copy(alpha = 0.10f), CircleShape)
         ) {
-            Icon(Icons.Default.Undo, contentDescription = "Undo last point", tint = Color.White,
+            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo last point", tint = Color.White,
                  modifier = Modifier.size(16.dp))
         }
         Button(

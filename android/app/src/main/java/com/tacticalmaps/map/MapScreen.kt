@@ -377,6 +377,7 @@ fun MapScreen(vm: MapViewModel = viewModel()) {
                 drawingLabelsVisible = drawingLabelsVisible,
                 selectedDrawingId = selectedDrawingId,
                 selectedWaypointId = selectedWaypointId,
+                calibrationFiduciaries = calibrationFiduciaries,
                 pendingTarget = pendingTarget,
                 onConsumePendingTarget = vm::consumePendingCameraTarget,
                 onCameraIdle = { lat, lng, byUser ->

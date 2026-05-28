@@ -105,6 +105,7 @@ fun GoogleMapScreen(
     drawingLabelsVisible: Boolean = true,
     selectedDrawingId: String? = null,
     selectedWaypointId: String? = null,
+    calibrationFiduciaries: List<com.tacticalmaps.calibration.Fiduciary> = emptyList(),
     pendingTarget: Triple<Double, Double, Float>? = null,
     onConsumePendingTarget: () -> Unit = {},
     onCameraIdle: (lat: Double, lng: Double, byUser: Boolean) -> Unit = { _, _, _ -> },
@@ -120,7 +121,6 @@ fun GoogleMapScreen(
     onShapeMoved: (featureId: String, deltaLat: Double, deltaLng: Double) -> Unit = { _, _, _ -> },
     onMapTap: () -> Unit = {}
 ) {
-    val context = LocalContext.current
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(0.0, 0.0), 2f)
     }
@@ -253,6 +253,13 @@ fun GoogleMapScreen(
                     onTap = { currentOnMarkerTap.value(wp) },
                     onMoved = { lat, lng -> currentOnWaypointMoved.value(wp, lat, lng) }
                 )
+            }
+
+            /// PDF calibration fiduciaries — render small numbered
+            /// pins for each tapped reference point so the user can
+            /// see which corners of the PDF they've registered.
+            calibrationFiduciaries.forEachIndexed { i, fid ->
+                CalibrationFiduciaryMarker(index = i + 1, fid = fid)
             }
         }
 
@@ -1137,6 +1144,86 @@ private fun DrawingLabelsOverlay(
             )
         }
     }
+}
+
+/// Numbered pin for one PDF-calibration fiduciary. The pin's geographic
+/// position is the MGRS the user typed for that PDF corner; the
+/// number identifies the order so the user knows which fiduciary
+/// they've placed.
+@Composable
+private fun CalibrationFiduciaryMarker(index: Int, fid: com.tacticalmaps.calibration.Fiduciary) {
+    val context = LocalContext.current
+    val markerState = rememberMarkerState(position = LatLng(fid.latitude, fid.longitude))
+    val descriptor = remember(index) {
+        makeFiduciaryPinDrawable(context, index).toBitmapDescriptor()
+    }
+    Marker(
+        state = markerState,
+        icon = descriptor,
+        anchor = Offset(0.5f, 1f),
+        title = "Fiduciary $index",
+        snippet = fid.mgrs,
+        zIndex = 1f
+    )
+}
+
+/// Build a small pin-shaped bitmap with a number stamped inside.
+/// Tactical orange so it pops against satellite and PDF basemaps.
+private fun makeFiduciaryPinDrawable(
+    context: android.content.Context,
+    index: Int
+): BitmapDrawable {
+    val density = context.resources.displayMetrics.density
+    val size = (32f * density).toInt()
+    val bmp = Bitmap.createBitmap(size, size + (8f * density).toInt(), Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bmp)
+    val cx = size / 2f
+    val cy = size / 2f
+    val r = size / 2f - 2f * density
+
+    val orange = 0xFFFFA63D.toInt()
+    val white = 0xFFFFFFFF.toInt()
+    val text = 0xFF1A1A1A.toInt()
+
+    /// Pin tail — small triangle pointing down from the disc's bottom.
+    val tailPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = orange
+    }
+    val path = android.graphics.Path().apply {
+        moveTo(cx - 5f * density, cy + r - 1f)
+        lineTo(cx + 5f * density, cy + r - 1f)
+        lineTo(cx, bmp.height.toFloat() - 1f)
+        close()
+    }
+    canvas.drawPath(path, tailPaint)
+
+    /// Disc.
+    val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = orange
+    }
+    canvas.drawCircle(cx, cy, r, fill)
+    val stroke = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = white
+        style = android.graphics.Paint.Style.STROKE
+        strokeWidth = 2f * density
+    }
+    canvas.drawCircle(cx, cy, r, stroke)
+
+    /// Number — centred in the disc.
+    val textPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = text
+        textSize = 14f * density
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.create(
+            android.graphics.Typeface.DEFAULT,
+            android.graphics.Typeface.BOLD
+        )
+    }
+    val fm = textPaint.fontMetrics
+    val baselineY = cy - (fm.ascent + fm.descent) / 2f
+    canvas.drawText(index.toString(), cx, baselineY, textPaint)
+
+    return BitmapDrawable(context.resources, bmp)
 }
 
 private fun Drawable.toBitmapDescriptor(): BitmapDescriptor {
