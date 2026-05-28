@@ -1,7 +1,10 @@
 import SwiftUI
 
-/// Top-left hamburger button. Opens a Menu containing every secondary tool:
-/// Search, Waypoints, Drawings, Layers, Import PDF Map, Export GeoJSON.
+/// Top-left hamburger button. Opens a CUSTOM popover (not SwiftUI's
+/// system `Menu`) so each row is a full-width 54pt button with a 28pt
+/// icon — wide enough to hit reliably with a finger on a real phone.
+/// The system Menu's compact rows were hard to tap consistently per
+/// user feedback.
 struct HamburgerMenu: View {
     let onSearch:        () -> Void
     let onWaypoints:     () -> Void
@@ -13,20 +16,11 @@ struct HamburgerMenu: View {
     let onExport:        () -> Void
     let onAbout:         () -> Void
 
+    @State private var isOpen = false
+
     var body: some View {
-        Menu {
-            // Section dividers eat enough vertical space that the menu
-            // clipped its tail on iPhone-portrait. Flat layout fits every
-            // item without scrolling.
-            Button { onSearch() }    label: { Label("Search…",         systemImage: "magnifyingglass") }
-            Button { onWaypoints() } label: { Label("Symbology",       systemImage: "mappin.and.ellipse") }
-            Button { onDrawings()  } label: { Label("Drawings",        systemImage: "scribble.variable") }
-            Button { onLayers()    } label: { Label("Layers",          systemImage: "square.3.stack.3d") }
-            Button { onMeasure()   } label: { Label("Measure",         systemImage: "ruler") }
-            Button { onImport() }    label: { Label("Import PDF Map…", systemImage: "doc.badge.plus") }
-            Button { onImportGeoJSON() } label: { Label("Import GeoJSON…", systemImage: "square.and.arrow.down") }
-            Button { onExport() }    label: { Label("Export GeoJSON…", systemImage: "square.and.arrow.up") }
-            Button { onAbout() }     label: { Label("About & Credits", systemImage: "info.circle") }
+        Button {
+            isOpen.toggle()
         } label: {
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 19, weight: .medium))
@@ -41,6 +35,75 @@ struct HamburgerMenu: View {
                 .foregroundStyle(.white)
                 .contentShape(Circle())
         }
+        .buttonStyle(.plain)
+        /// Use `popover` so on phone the system renders it as a
+        /// compact sheet anchored near the trigger. We rely on the
+        /// `.compact` detent so it doesn't fill the screen on phone.
+        .sheet(isPresented: $isOpen) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 0) {
+                    row("Search…",         systemImage: "magnifyingglass")     { close(onSearch) }
+                    divider
+                    row("Symbology",       systemImage: "mappin.and.ellipse")  { close(onWaypoints) }
+                    row("Drawings",        systemImage: "scribble.variable")   { close(onDrawings) }
+                    row("Layers",          systemImage: "square.3.stack.3d")   { close(onLayers) }
+                    row("Measure",         systemImage: "ruler")               { close(onMeasure) }
+                    divider
+                    row("Import PDF Map…", systemImage: "doc.badge.plus")      { close(onImport) }
+                    row("Import GeoJSON…", systemImage: "square.and.arrow.down") { close(onImportGeoJSON) }
+                    row("Export GeoJSON…", systemImage: "square.and.arrow.up")   { close(onExport) }
+                    divider
+                    row("About & Credits", systemImage: "info.circle")         { close(onAbout) }
+                    Spacer(minLength: 0)
+                }
+                .navigationTitle("Menu")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Close") { isOpen = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private func close(_ action: @escaping () -> Void) {
+        isOpen = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { action() }
+    }
+
+    @ViewBuilder
+    private func row(
+        _ label: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .frame(width: 28, alignment: .center)
+                Text(label)
+                    .font(.system(size: 16))
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            /// 54pt tall: clears Apple's 44pt minimum with breathing
+            /// room and gives each finger-sized icon room to read.
+            .frame(height: 54)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(Color.gray.opacity(0.25))
+            .frame(height: 0.5)
     }
 }
 

@@ -251,6 +251,14 @@ struct ContentView: View {
         .onAppear {
             locationService.requestAuthorisation()
             locationService.start()
+            /// Rehydrate the last-imported PDF (if any) so the user
+            /// doesn't have to re-import after closing the app. The
+            /// PDF file lives in Documents and the calibration is
+            /// stored in UserDefaults — see PDFSessionStore.
+            if let restored = PDFSessionStore.load() {
+                NSLog("[Import] restored persisted PDF: \(restored.displayName)")
+                mapVM.mapSource = restored
+            }
         }
         .onReceive(locationService.$lastLocation.compactMap { $0 }) { loc in
             mapVM.userLocationDidUpdate(loc)
@@ -414,18 +422,41 @@ struct ContentView: View {
 
             await MainActor.run {
                 NSLog("[Import] installing PDFMapSource on MainActor")
-                mapVM.mapSource = PDFMapSource(
+                let source = PDFMapSource(
                     url: dest,
                     bounds: resolvedBounds,
                     fromGeoPDF: fromGeoPDF
                 )
-                let span = MKCoordinateSpan(
-                    latitudeDelta:  abs(resolvedBounds.northEast.latitude  - resolvedBounds.southWest.latitude)  * 1.25,
-                    longitudeDelta: abs(resolvedBounds.northEast.longitude - resolvedBounds.southWest.longitude) * 1.25
-                )
-                mapVM.cameraRequests.send(
-                    MKCoordinateRegion(center: resolvedBounds.centre, span: span)
-                )
+                mapVM.mapSource = source
+                PDFSessionStore.save(source)
+
+                /// If the user's current GPS fix sits inside the
+                /// imported PDF's coverage box, snap straight to
+                /// the user — they immediately see "I am here on
+                /// this paper map". Otherwise frame the whole PDF
+                /// so they can see what they just imported.
+                let userLoc = locationService.lastLocation?.coordinate
+                let userInsideCoverage = userLoc.map { coord in
+                    coord.latitude  >= resolvedBounds.southWest.latitude  &&
+                    coord.latitude  <= resolvedBounds.northEast.latitude  &&
+                    coord.longitude >= resolvedBounds.southWest.longitude &&
+                    coord.longitude <= resolvedBounds.northEast.longitude
+                } ?? false
+                if userInsideCoverage, let coord = userLoc {
+                    mapVM.cameraRequests.send(MKCoordinateRegion(
+                        center: coord,
+                        latitudinalMeters: 1500,
+                        longitudinalMeters: 1500
+                    ))
+                } else {
+                    let span = MKCoordinateSpan(
+                        latitudeDelta:  abs(resolvedBounds.northEast.latitude  - resolvedBounds.southWest.latitude)  * 1.25,
+                        longitudeDelta: abs(resolvedBounds.northEast.longitude - resolvedBounds.southWest.longitude) * 1.25
+                    )
+                    mapVM.cameraRequests.send(
+                        MKCoordinateRegion(center: resolvedBounds.centre, span: span)
+                    )
+                }
             }
         }
     }

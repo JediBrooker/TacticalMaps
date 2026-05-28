@@ -6,6 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tacticalmaps.calibration.MapSource
 import com.tacticalmaps.calibration.OpenStreetMapSourceAndroid
+import com.tacticalmaps.calibration.PdfMapSource
+import com.tacticalmaps.calibration.PdfSessionStore
 import com.tacticalmaps.mgrs.MgrsFormatter
 import com.tacticalmaps.models.LocationService
 import kotlinx.coroutines.channels.Channel
@@ -42,18 +44,51 @@ class MapViewModel(app: Application) : AndroidViewModel(app) {
     private val _mapBearingDegrees = MutableStateFlow(0.0)
     val mapBearingDegrees: StateFlow<Double> = _mapBearingDegrees.asStateFlow()
 
+    private val pdfSessionStore = PdfSessionStore(app)
+
     private val _mapSource = MutableStateFlow<MapSource>(OpenStreetMapSourceAndroid())
     val mapSource: StateFlow<MapSource> = _mapSource.asStateFlow()
 
+    init {
+        /// Restore the last-imported PDF map (if any) on startup so
+        /// the user doesn't have to re-import after closing the app.
+        pdfSessionStore.load()?.let { restored ->
+            _mapSource.value = restored
+        }
+    }
+
+    /**
+     * Set the active map source AND, when it's a calibrated PDF, fly
+     * the camera to a sensible starting position:
+     *   - If we have a recent user fix inside the PDF coverage box,
+     *     centre on the user (so they immediately see "I am here on
+     *     this paper map").
+     *   - Otherwise centre on the PDF's coverage centre (the user is
+     *     off-map and we want them to at least see the page).
+     *
+     * Calibrated PDF sources are also written through to
+     * [pdfSessionStore] so they survive an app restart.
+     */
     fun setMapSource(source: MapSource) {
         _mapSource.value = source
-        source.coverage?.center?.let { center ->
-            flyTo(center.latitude, center.longitude, 13f)
+        if (source is PdfMapSource) pdfSessionStore.save(source)
+
+        val coverage = source.coverage ?: return
+        val userLoc = lastUserLocation
+        val userInsideCoverage = userLoc != null &&
+            userLoc.latitude in coverage.southwest.latitude..coverage.northeast.latitude &&
+            userLoc.longitude in coverage.southwest.longitude..coverage.northeast.longitude
+        if (userInsideCoverage) {
+            flyTo(userLoc!!.latitude, userLoc.longitude, 15f)
+        } else {
+            val centre = coverage.center
+            flyTo(centre.latitude, centre.longitude, 13f)
         }
     }
 
     fun unloadPdfMap() {
         _mapSource.value = OpenStreetMapSourceAndroid()
+        pdfSessionStore.clear()
     }
 
     /** Programmatic camera target = (lat, lng, zoom). null when nothing

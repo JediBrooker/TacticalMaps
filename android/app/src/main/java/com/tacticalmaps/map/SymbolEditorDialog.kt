@@ -293,15 +293,17 @@ private fun EditorTopBar(
 /// The background is white in both cases — military glyphs already
 /// render on white in the SDIC spec, and task graphics are black on
 /// transparent so they need a non-dark backdrop to actually read.
+///
+/// The rendered bitmaps include transparent padding around the
+/// visible glyph (HQ-pole reserve, echelon dot space, etc.). We
+/// crop to the visible-pixel bounding box before scaling so the
+/// glyph fills the tile instead of huddling in one corner.
 @Composable
 private fun SymbolPreviewTile(
     kind: WaypointKind,
     fallbackIcon: ImageVector
 ) {
     val context = LocalContext.current
-    /// `Waypoint` is the type SymbolIconFactory expects — assemble a
-    /// throwaway one with default rotation/scale so its bitmap is in
-    /// the same shape the on-map renderer would draw.
     val bitmap = remember(kind) {
         if (kind is WaypointKind.Generic) return@remember null
         val placeholder = Waypoint(
@@ -313,19 +315,31 @@ private fun SymbolPreviewTile(
         val drawable = SymbolIconFactory.drawableFor(context, placeholder)
         val w = drawable.intrinsicWidth.coerceAtLeast(1)
         val h = drawable.intrinsicHeight.coerceAtLeast(1)
-        val bmp = android.graphics.Bitmap.createBitmap(
+        val full = android.graphics.Bitmap.createBitmap(
             w, h, android.graphics.Bitmap.Config.ARGB_8888
         )
         drawable.setBounds(0, 0, w, h)
-        drawable.draw(android.graphics.Canvas(bmp))
-        bmp
+        drawable.draw(android.graphics.Canvas(full))
+        /// Crop transparent padding so ContentScale.Fit scales the
+        /// VISIBLE glyph (not the bitmap-frame-including-padding) up
+        /// to fill the preview tile.
+        val visible = SymbolIconFactory.visibleBoundsFor(context, placeholder)
+        if (visible.width() in 1..(full.width) && visible.height() in 1..(full.height)) {
+            android.graphics.Bitmap.createBitmap(
+                full,
+                visible.left.coerceAtLeast(0),
+                visible.top.coerceAtLeast(0),
+                visible.width().coerceAtMost(full.width - visible.left),
+                visible.height().coerceAtMost(full.height - visible.top)
+            )
+        } else full
     }
 
     Box(
         modifier = Modifier
             .size(56.dp)
             .background(Color.White, RoundedCornerShape(8.dp))
-            .padding(4.dp),
+            .padding(6.dp),
         contentAlignment = Alignment.Center
     ) {
         if (bitmap != null) {
