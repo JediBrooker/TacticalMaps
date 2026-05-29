@@ -32,7 +32,6 @@ enum PDFSessionStore {
         }
         let dto = PersistedPDF(
             fileName: source.url.lastPathComponent,
-            displayName: source.displayName,
             swLat: bounds.southWest.latitude,
             swLng: bounds.southWest.longitude,
             neLat: bounds.northEast.latitude,
@@ -94,8 +93,10 @@ enum PDFSessionStore {
 }
 
 private struct PersistedPDF: Codable {
+    /// `displayName` is intentionally not stored: PDFMapSource always
+    /// derives it from the file's URL on init, so persisting it would be
+    /// dead data that could drift out of sync with the filename.
     let fileName: String
-    let displayName: String
     let swLat: Double
     let swLng: Double
     let neLat: Double

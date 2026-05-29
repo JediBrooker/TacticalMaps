@@ -312,14 +312,13 @@ private fun SymbolPreviewTile(
             longitude = 0.0,
             kind = kind
         )
+        /// The factory already rasterised the glyph into a BitmapDrawable,
+        /// so reuse its bitmap instead of allocating and re-drawing into a
+        /// throwaway copy. (Don't recycle it — it's owned by the factory's
+        /// icon cache.)
         val drawable = SymbolIconFactory.drawableFor(context, placeholder)
-        val w = drawable.intrinsicWidth.coerceAtLeast(1)
-        val h = drawable.intrinsicHeight.coerceAtLeast(1)
-        val full = android.graphics.Bitmap.createBitmap(
-            w, h, android.graphics.Bitmap.Config.ARGB_8888
-        )
-        drawable.setBounds(0, 0, w, h)
-        drawable.draw(android.graphics.Canvas(full))
+        val full = (drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+            ?: return@remember null
         /// Crop transparent padding so ContentScale.Fit scales the
         /// VISIBLE glyph (not the bitmap-frame-including-padding) up
         /// to fill the preview tile.

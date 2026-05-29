@@ -1,5 +1,6 @@
 package com.tacticalmaps.calibration
 
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
 /**
@@ -20,11 +21,13 @@ sealed interface MapSource {
 
 enum class MapSourceKind { OPEN_STREET_MAP, GEO_PDF, CALIBRATED_PDF }
 
+@Serializable
 data class Wgs84Coordinate(
     val latitude: Double,
     val longitude: Double
 )
 
+@Serializable
 data class Wgs84Bounds(
     val southwest: Wgs84Coordinate,
     val northeast: Wgs84Coordinate

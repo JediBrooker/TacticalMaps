@@ -55,12 +55,7 @@ class PdfSessionStore(private val context: Context) {
                 fids = calibration.fids,
                 transform = calibration.transform
             ),
-            coverage = PersistedBounds(
-                swLat = coverage.southwest.latitude,
-                swLng = coverage.southwest.longitude,
-                neLat = coverage.northeast.latitude,
-                neLng = coverage.northeast.longitude
-            )
+            coverage = coverage
         )
         runCatching { json.encodeToString(dto) }
             .onSuccess { prefs.edit().putString(KEY_PDF, it).apply() }
@@ -83,10 +78,7 @@ class PdfSessionStore(private val context: Context) {
             uri = Uri.fromFile(file),
             displayName = dto.displayName,
             kind = MapSourceKind.CALIBRATED_PDF,
-            coverage = Wgs84Bounds(
-                southwest = Wgs84Coordinate(dto.coverage.swLat, dto.coverage.swLng),
-                northeast = Wgs84Coordinate(dto.coverage.neLat, dto.coverage.neLng)
-            ),
+            coverage = dto.coverage,
             calibration = Calibration.Fiduciaries(
                 fids = dto.calibration.fids,
                 transform = dto.calibration.transform
@@ -113,19 +105,11 @@ private data class PersistedPdfSource(
     val pageWidth: Int,
     val pageHeight: Int,
     val calibration: PersistedCalibration,
-    val coverage: PersistedBounds
+    val coverage: Wgs84Bounds
 )
 
 @Serializable
 private data class PersistedCalibration(
     val fids: List<Fiduciary>,
     val transform: AffineTransform2D
-)
-
-@Serializable
-private data class PersistedBounds(
-    val swLat: Double,
-    val swLng: Double,
-    val neLat: Double,
-    val neLng: Double
 )
