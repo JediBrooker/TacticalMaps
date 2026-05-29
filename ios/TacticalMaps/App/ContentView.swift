@@ -258,6 +258,14 @@ struct ContentView: View {
             if let restored = PDFSessionStore.load() {
                 NSLog("[Import] restored persisted PDF: \(restored.displayName)")
                 mapVM.mapSource = restored
+                /// Frame the restored map the same way an import does, so a
+                /// PDF whose coverage doesn't contain the user doesn't open
+                /// off-screen. (No fix yet at launch → frames the whole page;
+                /// the first fix won't yank away if the user is off-map.)
+                mapVM.frameCamera(
+                    for: restored,
+                    userLocation: locationService.lastLocation?.coordinate
+                )
             }
         }
         .onReceive(locationService.$lastLocation.compactMap { $0 }) { loc in
@@ -435,33 +443,13 @@ struct ContentView: View {
                 mapVM.mapSource = source
                 PDFSessionStore.save(source)
 
-                /// If the user's current GPS fix sits inside the
-                /// imported PDF's coverage box, snap straight to
-                /// the user — they immediately see "I am here on
-                /// this paper map". Otherwise frame the whole PDF
-                /// so they can see what they just imported.
-                let userLoc = locationService.lastLocation?.coordinate
-                let userInsideCoverage = userLoc.map { coord in
-                    coord.latitude  >= resolvedBounds.southWest.latitude  &&
-                    coord.latitude  <= resolvedBounds.northEast.latitude  &&
-                    coord.longitude >= resolvedBounds.southWest.longitude &&
-                    coord.longitude <= resolvedBounds.northEast.longitude
-                } ?? false
-                if userInsideCoverage, let coord = userLoc {
-                    mapVM.cameraRequests.send(MKCoordinateRegion(
-                        center: coord,
-                        latitudinalMeters: 1500,
-                        longitudinalMeters: 1500
-                    ))
-                } else {
-                    let span = MKCoordinateSpan(
-                        latitudeDelta:  abs(resolvedBounds.northEast.latitude  - resolvedBounds.southWest.latitude)  * 1.25,
-                        longitudeDelta: abs(resolvedBounds.northEast.longitude - resolvedBounds.southWest.longitude) * 1.25
-                    )
-                    mapVM.cameraRequests.send(
-                        MKCoordinateRegion(center: resolvedBounds.centre, span: span)
-                    )
-                }
+                /// Frame the camera: snap to the user if they're inside the
+                /// PDF's coverage, otherwise frame the whole page. Shared
+                /// with the restore path via MapViewModel.frameCamera.
+                mapVM.frameCamera(
+                    for: source,
+                    userLocation: locationService.lastLocation?.coordinate
+                )
             }
         }
     }

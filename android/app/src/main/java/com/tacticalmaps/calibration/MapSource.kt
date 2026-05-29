@@ -37,6 +37,21 @@ data class Wgs84Bounds(
 
     val latitudeSpan: Double get() = northeast.latitude - southwest.latitude
     val longitudeSpan: Double get() = northeast.longitude - southwest.longitude
+
+    /**
+     * True when (lat, lng) falls inside these bounds. Handles bounds that
+     * cross the antimeridian (southwest.longitude > northeast.longitude),
+     * where a plain `lng in sw..ne` range would be empty and wrongly
+     * report every point as outside.
+     */
+    fun contains(lat: Double, lng: Double): Boolean {
+        if (lat < southwest.latitude || lat > northeast.latitude) return false
+        return if (southwest.longitude <= northeast.longitude) {
+            lng in southwest.longitude..northeast.longitude
+        } else {
+            lng >= southwest.longitude || lng <= northeast.longitude
+        }
+    }
 }
 
 /** Calibration state for a PDF source. */

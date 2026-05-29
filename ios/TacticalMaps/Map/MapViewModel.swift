@@ -148,7 +148,35 @@ final class MapViewModel: ObservableObject {
         lastUserCoordinate = location.coordinate
         if !hasInitialFix {
             hasInitialFix = true
+            // Centre on the user on the first fix — unless a bounded map
+            // (PDF) is active and the user is off it, in which case keep
+            // the framing set at import/restore so an off-map PDF stays
+            // visible instead of being yanked away to the user.
+            if let coverage = mapSource.coverage,
+               !coverage.contains(location.coordinate) {
+                return
+            }
             centreOnUser(location)
+        }
+    }
+
+    /// Frame the camera for a freshly-set or restored map source: snap to
+    /// `userLocation` when it sits inside the source's coverage (so the
+    /// user immediately sees "I am here on this map"), otherwise frame the
+    /// whole coverage. No-op for unbounded sources (e.g. satellite).
+    ///
+    /// Centralises what used to be inline in the import path so the restore
+    /// path frames consistently too.
+    func frameCamera(for source: MapSource, userLocation: CLLocationCoordinate2D?) {
+        guard let coverage = source.coverage else { return }
+        if let user = userLocation, coverage.contains(user) {
+            cameraRequests.send(MKCoordinateRegion(
+                center: user,
+                latitudinalMeters: 1500,
+                longitudinalMeters: 1500
+            ))
+        } else {
+            cameraRequests.send(coverage)
         }
     }
 
@@ -179,5 +207,20 @@ final class MapViewModel: ObservableObject {
 
     func resetNorth() {
         resetNorthRequests.send(())
+    }
+}
+
+extension MKCoordinateRegion {
+    /// True when `coordinate` falls within this region's lat/long span.
+    /// Uses the shortest angular distance in longitude so a span that
+    /// straddles the antimeridian (centre near ±180°) is handled
+    /// correctly instead of reporting every point as outside.
+    func contains(_ coordinate: CLLocationCoordinate2D) -> Bool {
+        if abs(coordinate.latitude - center.latitude) > span.latitudeDelta / 2 {
+            return false
+        }
+        var dLng = abs(coordinate.longitude - center.longitude)
+        if dLng > 180 { dLng = 360 - dLng }
+        return dLng <= span.longitudeDelta / 2
     }
 }

@@ -49,22 +49,9 @@ class MapViewModel(app: Application) : AndroidViewModel(app) {
     private val _mapSource = MutableStateFlow<MapSource>(OpenStreetMapSourceAndroid())
     val mapSource: StateFlow<MapSource> = _mapSource.asStateFlow()
 
-    init {
-        /// Restore the last-imported PDF map (if any) on startup so
-        /// the user doesn't have to re-import after closing the app.
-        pdfSessionStore.load()?.let { restored ->
-            _mapSource.value = restored
-        }
-    }
-
     /**
-     * Set the active map source AND, when it's a calibrated PDF, fly
-     * the camera to a sensible starting position:
-     *   - If we have a recent user fix inside the PDF coverage box,
-     *     centre on the user (so they immediately see "I am here on
-     *     this paper map").
-     *   - Otherwise centre on the PDF's coverage centre (the user is
-     *     off-map and we want them to at least see the page).
+     * Set the active map source AND, when it has coverage, fly the camera
+     * to a sensible starting position (see [frameCameraFor]).
      *
      * Calibrated PDF sources are also written through to
      * [pdfSessionStore] so they survive an app restart.
@@ -72,14 +59,25 @@ class MapViewModel(app: Application) : AndroidViewModel(app) {
     fun setMapSource(source: MapSource) {
         _mapSource.value = source
         if (source is PdfMapSource) pdfSessionStore.save(source)
+        frameCameraFor(source)
+    }
 
+    /**
+     * Frame the camera for a freshly-set or restored map source:
+     *   - If we have a recent user fix inside the source's coverage box,
+     *     centre on the user (so they immediately see "I am here on
+     *     this paper map").
+     *   - Otherwise centre on the coverage centre (the user is off-map
+     *     and we want them to at least see the page).
+     *
+     * No-op for unbounded sources (e.g. OSM). Shared by [setMapSource]
+     * and the startup restore so a restored PDF frames like an import.
+     */
+    private fun frameCameraFor(source: MapSource) {
         val coverage = source.coverage ?: return
         val userLoc = lastUserLocation
-        val userInsideCoverage = userLoc != null &&
-            userLoc.latitude in coverage.southwest.latitude..coverage.northeast.latitude &&
-            userLoc.longitude in coverage.southwest.longitude..coverage.northeast.longitude
-        if (userInsideCoverage) {
-            flyTo(userLoc!!.latitude, userLoc.longitude, 15f)
+        if (userLoc != null && coverage.contains(userLoc.latitude, userLoc.longitude)) {
+            flyTo(userLoc.latitude, userLoc.longitude, 15f)
         } else {
             val centre = coverage.center
             flyTo(centre.latitude, centre.longitude, 13f)
@@ -106,6 +104,17 @@ class MapViewModel(app: Application) : AndroidViewModel(app) {
     private var hasInitialFix = false
 
     init {
+        /// Restore the last-imported PDF map (if any) on startup so the
+        /// user doesn't have to re-import after closing the app, then frame
+        /// it like an import would. Runs here (not in an earlier init block)
+        /// because [frameCameraFor] -> flyTo touches [_pendingCameraTarget],
+        /// which is declared above and must already be initialised.
+        /// No fix yet at launch, so this frames the whole page; the first
+        /// fix won't yank away if the user turns out to be off-map.
+        pdfSessionStore.load()?.let { restored ->
+            _mapSource.value = restored
+            frameCameraFor(restored)
+        }
         viewModelScope.launch {
             locationService.lastLocation.collect { loc -> loc?.let(::onUserLocation) }
         }
@@ -139,7 +148,13 @@ class MapViewModel(app: Application) : AndroidViewModel(app) {
         lastUserLocation = loc
         if (!hasInitialFix) {
             hasInitialFix = true
-            centreOnUser()
+            // Centre on the user on the first fix — unless a bounded map
+            // (PDF) is active and the user is off it, in which case keep the
+            // framing set at import/restore so an off-map PDF stays visible.
+            val coverage = _mapSource.value.coverage
+            if (coverage == null || coverage.contains(loc.latitude, loc.longitude)) {
+                centreOnUser()
+            }
         }
     }
 
