@@ -108,6 +108,6 @@ struct WaypointListSheet: View {
 }
 
 // Allow CLLocationCoordinate2D to drive a `.sheet(item:)` for "create at" flows.
-extension CLLocationCoordinate2D: Identifiable {
+extension CLLocationCoordinate2D: @retroactive Identifiable {
     public var id: String { "\(latitude),\(longitude)" }
 }

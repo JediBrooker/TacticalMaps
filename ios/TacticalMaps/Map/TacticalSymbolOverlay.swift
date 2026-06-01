@@ -103,7 +103,6 @@ final class OverlayContainerView: UIView {
         // waypoint earns a label slot only if its kind's toggle is on AND
         // the waypoint is otherwise visible — so toggling "Task Labels"
         // off doesn't yank "Unit Labels" along with it.
-        let waypointsByID = Dictionary(uniqueKeysWithValues: waypoints.map { ($0.id, $0) })
         let labelIDs: Set<UUID> = visible
             ? Set(waypoints.filter { wp in
                 switch wp.kind {

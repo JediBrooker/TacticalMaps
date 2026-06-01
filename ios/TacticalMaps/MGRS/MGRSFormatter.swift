@@ -24,16 +24,15 @@ enum MGRSFormatter {
     /// Decode `"56HLH 13225 37516"` (or the no-space form) back to WGS84.
     ///
     /// **Crash safety**: NGA's `MGRS.parse` calls `fatalError` on inputs that
-    /// don't even look MGRS-shaped (a single "H", garbage like "hello", etc.).
-    /// `try?` cannot catch fatalError. We pre-validate with a regex so the
-    /// library is only called on strings with the right shape.
+    /// don't even look MGRS-shaped (a single "H", garbage like "hello", etc.)
+    /// — and it's non-throwing, so there's nothing to catch. We pre-validate
+    /// with a regex so the library is only called on right-shaped strings.
     static func coordinate(from mgrs: String) -> CLLocationCoordinate2D? {
         let compact = mgrs
             .replacingOccurrences(of: " ", with: "")
             .uppercased()
         guard looksLikeMGRS(compact) else { return nil }
-        guard let parsed = try? MGRS.parse(compact) else { return nil }
-        let point = parsed.toPoint()
+        let point = MGRS.parse(compact).toPoint()
         return CLLocationCoordinate2D(latitude: point.latitude, longitude: point.longitude)
     }
 
