@@ -250,12 +250,6 @@ final class BubbleView: UIView {
     private weak var mapVM: MapViewModel?
 
     private let imageView = UIImageView()
-    /// Tactical-orange halo behind the icon when this bubble is the
-    /// selected waypoint. Its image is a pre-rendered, blurred orange
-    /// silhouette of the symbol — so the glow follows the icon's
-    /// shape (rectangle for units, hexagon for control measures, etc.)
-    /// instead of looking like a generic circle.
-    private let glowImageView = UIImageView()
     private var dragStartScreenPoint: CGPoint?
     /// True between long-press recognition and release. While true the
     /// container leaves our frame alone — re-renders triggered by
@@ -286,12 +280,6 @@ final class BubbleView: UIView {
         // have square frames so this is a no-op for them.
         imageView.contentMode = .scaleToFill
         imageView.isUserInteractionEnabled = false
-        // Halo behind the icon. Image is set in refreshImage() so it
-        // matches the symbol shape, and alpha goes to 1 on select.
-        glowImageView.contentMode = .scaleToFill
-        glowImageView.isUserInteractionEnabled = false
-        glowImageView.alpha = 0
-        addSubview(glowImageView)
         addSubview(imageView)
 
         // Triple-stacked shadow approximates the soft white halo the
@@ -332,17 +320,18 @@ final class BubbleView: UIView {
     func setSelected(_ selected: Bool) {
         let layer = imageView.layer
         if selected {
-            // Sharp orange CALayer shadow on the icon — gives the halo
-            // a crisp inner edge right against the symbol outline.
+            // Orange CALayer shadow on the icon — a glow that follows the
+            // symbol's exact alpha outline (rectangle / hexagon / arc / …).
+            // (A separate pre-blurred "glow image" used to live behind the
+            // icon, but it was baked at a different scale than the crisp
+            // icon, so its embedded glyph peeked out and read as a second
+            // symbol on thin/open graphics like Form-Up Point.)
             layer.shadowColor   = UIColor(red: 1, green: 0.65, blue: 0.18, alpha: 1).cgColor
             layer.shadowOpacity = 1.0
-            layer.shadowRadius  = 10.0
+            layer.shadowRadius  = 12.0
             layer.shadowOffset  = .zero
-            // Halo image gives the wide outer glow that follows the
-            // symbol's actual shape (rectangle / hexagon / etc.).
             UIView.animate(withDuration: 0.15) {
                 self.imageView.transform = CGAffineTransform(scaleX: 1.10, y: 1.10)
-                self.glowImageView.alpha = 1.0
             }
         } else {
             layer.shadowColor   = UIColor.white.cgColor
@@ -351,7 +340,6 @@ final class BubbleView: UIView {
             layer.shadowOffset  = .zero
             UIView.animate(withDuration: 0.15) {
                 self.imageView.transform = .identity
-                self.glowImageView.alpha = 0
             }
         }
     }
@@ -359,10 +347,6 @@ final class BubbleView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         imageView.frame = bounds
-        // Halo image sits behind the icon, sized 25% larger on every
-        // side so the wide outer bloom is visible past the symbol edges.
-        let glowInset: CGFloat = -bounds.width * 0.25
-        glowImageView.frame = bounds.insetBy(dx: glowInset, dy: glowInset)
     }
 
     // MARK: - Rendering
@@ -379,39 +363,6 @@ final class BubbleView: UIView {
             imageView.image = MilitarySymbolRenderer.image(for: spec, size: 44)
         case .generic:
             imageView.image = Self.genericImage()
-        }
-        // Regenerate the halo image so it matches the new symbol's
-        // shape. Cheap — runs only when the icon image changes.
-        glowImageView.image = imageView.image.flatMap {
-            Self.makeGlowImage(from: $0,
-                               color: UIColor(red: 1, green: 0.65, blue: 0.18, alpha: 1),
-                               blurRadius: 14)
-        }
-    }
-
-    /// Build an icon-shaped glow image from the given symbol. Renders
-    /// the symbol several times with a tactical-orange drop shadow at
-    /// zero offset; the shadows stack into a bright halo that follows
-    /// the symbol's alpha mask exactly. The original glyph is also
-    /// drawn but is overlaid by the crisp `imageView` on top, so only
-    /// the spillover halo ends up visible.
-    private static func makeGlowImage(from src: UIImage,
-                                      color: UIColor,
-                                      blurRadius: CGFloat) -> UIImage {
-        let inset = blurRadius * 2
-        let outSize = CGSize(width: src.size.width + inset * 2,
-                             height: src.size.height + inset * 2)
-        let renderer = UIGraphicsImageRenderer(size: outSize)
-        return renderer.image { ctx in
-            let cg = ctx.cgContext
-            cg.setShadow(offset: .zero, blur: blurRadius, color: color.cgColor)
-            // Stack passes so the shadow's alpha builds up to a bright
-            // halo — a single pass washes out at large blur radii.
-            for _ in 0..<4 {
-                src.draw(in: CGRect(x: inset, y: inset,
-                                    width: src.size.width,
-                                    height: src.size.height))
-            }
         }
     }
 
