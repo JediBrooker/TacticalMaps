@@ -67,15 +67,16 @@ targets:
         ENABLE_PREVIEWS: "YES"
         GENERATE_INFOPLIST_FILE: "NO"
         INFOPLIST_FILE: TacticalMaps/Resources/Info.plist
-        # Apple Developer team. Both configs use Automatic signing; local
-        # archives still require the account/team to have valid provisioning
-        # profiles for this bundle identifier.
+        # Apple Developer team. Debug uses Xcode-managed development signing;
+        # Release archives use the App Store Connect distribution profile.
         DEVELOPMENT_TEAM: 6MY34D5RKG
       configs:
         Debug:
           CODE_SIGN_STYLE: Automatic
         Release:
-          CODE_SIGN_STYLE: Automatic
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Apple Distribution
+          PROVISIONING_PROFILE_SPECIFIER: TacticalMaps
     dependencies:
       - package: mgrs-ios
         product: MGRS
