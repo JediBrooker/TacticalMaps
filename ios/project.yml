@@ -67,18 +67,15 @@ targets:
         ENABLE_PREVIEWS: "YES"
         GENERATE_INFOPLIST_FILE: "NO"
         INFOPLIST_FILE: TacticalMaps/Resources/Info.plist
-        # Apple Developer team. Both configs use Automatic signing so Xcode /
-        # xcodebuild manage the App Store distribution profile on the fly via
-        # -allowProvisioningUpdates (no pre-provisioned profile required). The
-        # archive export step re-signs with the distribution cert.
+        # Apple Developer team. Both configs use Automatic signing; local
+        # archives still require the account/team to have valid provisioning
+        # profiles for this bundle identifier.
         DEVELOPMENT_TEAM: 6MY34D5RKG
       configs:
         Debug:
           CODE_SIGN_STYLE: Automatic
-          CODE_SIGN_IDENTITY: Apple Development
         Release:
           CODE_SIGN_STYLE: Automatic
-          CODE_SIGN_IDENTITY: Apple Distribution
     dependencies:
       - package: mgrs-ios
         product: MGRS
