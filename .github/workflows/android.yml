@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'android/**'
+      - 'testdata/**'
       - '.github/workflows/android.yml'
   pull_request:
     branches: [main]
     paths:
       - 'android/**'
+      - 'testdata/**'
       - '.github/workflows/android.yml'
   workflow_dispatch:
 
