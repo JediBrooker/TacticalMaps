@@ -50,8 +50,8 @@ final class StoreManager: ObservableObject {
             switch try await product.purchase() {
             case .success(let verification):
                 if case .verified(let transaction) = verification {
-                    isPurchased = true
                     await transaction.finish()
+                    await refreshEntitlement()
                 }
             case .userCancelled, .pending:
                 break
@@ -71,14 +71,15 @@ final class StoreManager: ObservableObject {
 
     /// Grant the unlock if a verified, non-revoked entitlement exists.
     func refreshEntitlement() async {
+        var hasEntitlement = false
         for await result in Transaction.currentEntitlements {
             if case .verified(let transaction) = result,
                transaction.productID == Self.productID,
                transaction.revocationDate == nil {
-                isPurchased = true
-                return
+                hasEntitlement = true
             }
         }
+        isPurchased = hasEntitlement
     }
 
     /// Listen for transactions approved outside the app (Ask to Buy, another
@@ -86,17 +87,12 @@ final class StoreManager: ObservableObject {
     private func listenForTransactions() -> Task<Void, Never> {
         Task.detached { [weak self] in
             for await result in Transaction.updates {
-                if case .verified(let transaction) = result {
-                    await self?.grant(transaction)
+                if case .verified(let transaction) = result,
+                   transaction.productID == Self.productID {
+                    await self?.refreshEntitlement()
                     await transaction.finish()
                 }
             }
-        }
-    }
-
-    private func grant(_ transaction: Transaction) {
-        if transaction.productID == Self.productID, transaction.revocationDate == nil {
-            isPurchased = true
         }
     }
 }

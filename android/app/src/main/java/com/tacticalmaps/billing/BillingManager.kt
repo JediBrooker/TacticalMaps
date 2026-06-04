@@ -44,11 +44,18 @@ class BillingManager(context: Context) : PurchasesUpdatedListener, BillingClient
         .build()
 
     fun start() {
-        if (client.connectionState == BillingClient.ConnectionState.CONNECTED) {
-            queryProduct(); restore()
-        } else {
-            client.startConnection(this)
+        when (client.connectionState) {
+            BillingClient.ConnectionState.CONNECTED -> {
+                queryProduct()
+                restore()
+            }
+            BillingClient.ConnectionState.CONNECTING -> Unit
+            else -> client.startConnection(this)
         }
+    }
+
+    fun end() {
+        client.endConnection()
     }
 
     override fun onBillingSetupFinished(result: BillingResult) {
@@ -84,11 +91,18 @@ class BillingManager(context: Context) : PurchasesUpdatedListener, BillingClient
 
     /** Re-check Play for an existing entitlement ("Restore purchase"). */
     fun restore() {
+        if (client.connectionState != BillingClient.ConnectionState.CONNECTED) {
+            start()
+            return
+        }
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.INAPP)
             .build()
-        client.queryPurchasesAsync(params) { _, purchases ->
-            purchases.forEach { handlePurchase(it) }
+        client.queryPurchasesAsync(params) { result, purchases ->
+            if (result.responseCode != BillingClient.BillingResponseCode.OK) return@queryPurchasesAsync
+            val activePurchases = purchases.filter(::isEntitlingPurchase)
+            _isPurchased.value = activePurchases.isNotEmpty()
+            activePurchases.forEach(::acknowledgeIfNeeded)
         }
     }
 
@@ -113,11 +127,17 @@ class BillingManager(context: Context) : PurchasesUpdatedListener, BillingClient
     }
 
     private fun handlePurchase(purchase: Purchase) {
-        if (!purchase.products.contains(PRODUCT_ID)) return
-        if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) return
+        if (!isEntitlingPurchase(purchase)) return
 
         _isPurchased.value = true
+        acknowledgeIfNeeded(purchase)
+    }
 
+    private fun isEntitlingPurchase(purchase: Purchase): Boolean =
+        purchase.products.contains(PRODUCT_ID) &&
+            purchase.purchaseState == Purchase.PurchaseState.PURCHASED
+
+    private fun acknowledgeIfNeeded(purchase: Purchase) {
         // Acknowledge within Play's 3-day window or the purchase is refunded.
         if (!purchase.isAcknowledged) {
             val ack = AcknowledgePurchaseParams.newBuilder()

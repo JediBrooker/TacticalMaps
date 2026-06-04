@@ -79,4 +79,11 @@ class MainActivity : ComponentActivity() {
         resumeTick.longValue = System.currentTimeMillis()
         billing.restore()
     }
+
+    override fun onDestroy() {
+        if (::billing.isInitialized) {
+            billing.end()
+        }
+        super.onDestroy()
+    }
 }
