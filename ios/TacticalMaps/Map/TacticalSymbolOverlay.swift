@@ -307,10 +307,11 @@ final class BubbleView: UIView {
     func update(waypoint: Waypoint, store: WaypointStore, mapVM: MapViewModel) {
         let kindChanged = waypoint.kind != self.waypoint.kind
         let rotationChanged = waypoint.rotation != self.waypoint.rotation
+        let colorChanged = waypoint.taskColor != self.waypoint.taskColor
         self.waypoint = waypoint
         self.store = store
         self.mapVM = mapVM
-        if kindChanged || rotationChanged {
+        if kindChanged || rotationChanged || colorChanged {
             refreshImage()
         }
     }
@@ -359,7 +360,8 @@ final class BubbleView: UIView {
         case .controlMeasure(let measure):
             imageView.image = TacticalControlMeasureRenderer.image(
                 for: measure,
-                rotation: waypoint.rotation
+                rotation: waypoint.rotation,
+                color: waypoint.taskColor
             )
         case .military(let spec):
             imageView.image = MilitarySymbolRenderer.image(for: spec, size: 44)

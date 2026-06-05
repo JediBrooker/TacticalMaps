@@ -45,6 +45,7 @@ struct SymbolControlsCard: View {
             // per-instance size in the model. No dividers between
             // sections — the icons and spacing carry enough structure.
             if case .controlMeasure = wp.kind {
+                colorRow(for: wp)
                 rotationRow(for: wp)
                 widthRow(for: wp)
                 heightRow(for: wp)
@@ -106,7 +107,8 @@ struct SymbolControlsCard: View {
             WaypointKindIcon(
                 kind: wp.kind,
                 size: inner,
-                rotation: wp.kind.controlMeasure == nil ? 0 : wp.rotation
+                rotation: wp.kind.controlMeasure == nil ? 0 : wp.rotation,
+                taskColor: wp.taskColor
             )
             .frame(width: tile, height: tile)
             // White background so the (mostly black) symbols stay
@@ -197,6 +199,43 @@ struct SymbolControlsCard: View {
         let drawings = drawingStore.shapes(in: layer.id).count
         let waypoints = waypointStore.waypoints.filter { $0.layerID == layer.id }.count
         return drawings + waypoints
+    }
+
+    /// Five-swatch colour picker for the task graphic. Black is the
+    /// default; the others follow the APP-6 affiliation palette
+    /// (blue = friendly, red = hostile, green = neutral, yellow =
+    /// unknown). Mirrors Android's ControlMeasureControls colour row.
+    private func colorRow(for wp: Waypoint) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "paintpalette")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+            HStack(spacing: 10) {
+                ForEach(TaskColor.allCases, id: \.self) { tc in
+                    Button {
+                        var updated = wp
+                        updated.taskColor = tc
+                        waypointStore.update(updated)
+                    } label: {
+                        Circle()
+                            .fill(tc.color)
+                            .frame(width: 28, height: 28)
+                            // White hairline so black/dark swatches read on
+                            // the translucent dark card.
+                            .overlay(Circle().strokeBorder(.white.opacity(0.7), lineWidth: 1))
+                            // Accent ring marks the current selection.
+                            .overlay(Circle().strokeBorder(
+                                Color.accentColor,
+                                lineWidth: wp.taskColor == tc ? 3 : 0))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(tc.label)
+                    .accessibilityAddTraits(wp.taskColor == tc ? [.isSelected] : [])
+                }
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     private func rotationRow(for wp: Waypoint) -> some View {

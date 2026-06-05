@@ -1,6 +1,7 @@
 package com.tacticalmaps.map
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tacticalmaps.drawings.DrawingLayer
+import com.tacticalmaps.waypoints.TaskColor
 import com.tacticalmaps.waypoints.Waypoint
 import com.tacticalmaps.waypoints.WaypointKind
 import com.tacticalmaps.waypoints.WaypointStore
@@ -204,6 +207,49 @@ private fun Header(
     }
 }
 
+/// Five-swatch colour picker for the task graphic. Black is the default;
+/// the others follow the APP-6 affiliation palette (blue = friendly,
+/// red = hostile, green = neutral, yellow = unknown). Mirrors iOS's
+/// SymbolControlsCard colour row.
+@Composable
+private fun ColorRow(
+    selected: TaskColor,
+    onSelect: (TaskColor) -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            "Colour",
+            color = Color.White.copy(alpha = 0.72f),
+            fontSize = 12.sp,
+            modifier = Modifier.weight(0.75f)
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.weight(2.45f)
+        ) {
+            TaskColor.entries.forEach { tc ->
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color(tc.argb))
+                        // White hairline so black/dark swatches read on the
+                        // dark card; accent ring marks the current selection.
+                        .border(
+                            width = if (tc == selected) 3.dp else 1.dp,
+                            color = if (tc == selected) Color(0xFF0A84FF) else Color.White.copy(alpha = 0.7f),
+                            shape = CircleShape
+                        )
+                        .clickable { onSelect(tc) }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun ControlMeasureControls(
     waypoint: Waypoint,
@@ -211,6 +257,10 @@ private fun ControlMeasureControls(
     onWaypointChangeDraft: (Waypoint) -> Unit = onWaypointChange,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        ColorRow(
+            selected = waypoint.taskColor,
+            onSelect = { onWaypointChange(waypoint.copy(taskColor = it)) }
+        )
         SliderRow(
             title = "Rotation",
             value = waypoint.rotation.toFloat(),

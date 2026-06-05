@@ -25,6 +25,11 @@ struct Waypoint: Identifiable, Codable, Hashable {
     var scaleX: Double
     /// Vertical multiplier. See `scaleX`.
     var scaleY: Double
+    /// Tint applied to a tactical task graphic (control measure). The
+    /// black line-art glyph is recoloured to this. Black is the default;
+    /// the others follow the APP-6 affiliation palette. Ignored for
+    /// military units and generic markers.
+    var taskColor: TaskColor
     /// Which map layer this waypoint belongs to. Shared layer model with
     /// `DrawingShape` so toggling a layer hides both drawings and
     /// waypoints on it. Backward-compat: pre-layer saves get the
@@ -43,6 +48,7 @@ struct Waypoint: Identifiable, Codable, Hashable {
          rotation: Double = 0,
          scaleX: Double = 1.0,
          scaleY: Double = 1.0,
+         taskColor: TaskColor = .black,
          layerID: UUID = DrawingLayer.legacyFallbackID,
          createdAt: Date = .now) {
         self.id = id
@@ -55,6 +61,7 @@ struct Waypoint: Identifiable, Codable, Hashable {
         self.rotation = rotation
         self.scaleX = scaleX
         self.scaleY = scaleY
+        self.taskColor = taskColor
         self.layerID = layerID
         self.createdAt = createdAt
     }
@@ -69,13 +76,14 @@ struct Waypoint: Identifiable, Codable, Hashable {
          rotation: Double = 0,
          scaleX: Double = 1.0,
          scaleY: Double = 1.0,
+         taskColor: TaskColor = .black,
          layerID: UUID = DrawingLayer.legacyFallbackID,
          createdAt: Date = .now) {
         self.init(id: id, name: name, notes: notes,
                   latitude: coordinate.latitude, longitude: coordinate.longitude,
                   elevation: elevation, kind: kind, rotation: rotation,
-                  scaleX: scaleX, scaleY: scaleY, layerID: layerID,
-                  createdAt: createdAt)
+                  scaleX: scaleX, scaleY: scaleY, taskColor: taskColor,
+                  layerID: layerID, createdAt: createdAt)
     }
 
     var coordinate: CLLocationCoordinate2D {
@@ -95,7 +103,7 @@ struct Waypoint: Identifiable, Codable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, notes, latitude, longitude, elevation, kind,
-             rotation, scale, scaleX, scaleY, layerID, createdAt
+             rotation, scale, scaleX, scaleY, taskColor, layerID, createdAt
     }
 
     init(from decoder: Decoder) throws {
@@ -116,6 +124,7 @@ struct Waypoint: Identifiable, Codable, Hashable {
             ?? legacyScale ?? 1.0
         self.scaleY = try c.decodeIfPresent(Double.self, forKey: .scaleY)
             ?? legacyScale ?? 1.0
+        self.taskColor = try c.decodeIfPresent(TaskColor.self, forKey: .taskColor) ?? .black
         self.layerID = try c.decodeIfPresent(UUID.self, forKey: .layerID)
             ?? DrawingLayer.legacyFallbackID
         self.createdAt = try c.decode(Date.self, forKey: .createdAt)
@@ -133,6 +142,7 @@ struct Waypoint: Identifiable, Codable, Hashable {
         try c.encode(rotation, forKey: .rotation)
         try c.encode(scaleX, forKey: .scaleX)
         try c.encode(scaleY, forKey: .scaleY)
+        try c.encode(taskColor, forKey: .taskColor)
         try c.encode(layerID, forKey: .layerID)
         try c.encode(createdAt, forKey: .createdAt)
     }
@@ -248,6 +258,41 @@ enum WaypointKind: Hashable, Codable {
             return "m|\(s.affiliation.rawValue)|\(s.echelon.rawValue)|\(s.function.rawValue)|\(s.isHeadquarters)"
         case .controlMeasure(let m):
             return "c|\(m.rawValue)"
+        }
+    }
+}
+
+// MARK: - Task graphic colour
+
+/// Colour applied to a tactical task graphic (control measure). The
+/// bundled glyphs are pure-black line art on transparent; the renderer
+/// template-tints them to this colour. Black is the default; the other
+/// four follow the APP-6 affiliation palette (saturated for legibility
+/// on both satellite imagery and imported PDFs — the affiliation frame
+/// fills are pastel and too pale for line art). Kept in sync with
+/// Android's `TaskColor`.
+enum TaskColor: String, Codable, Hashable, CaseIterable {
+    case black, blue, red, green, yellow
+
+    /// Tint for the glyph.
+    var color: Color {
+        switch self {
+        case .black:  return .black
+        case .blue:   return Color(red: 0x0E / 255, green: 0x5F / 255, blue: 0xD8 / 255)  // #0E5FD8
+        case .red:    return Color(red: 0xD8 / 255, green: 0x28 / 255, blue: 0x1F / 255)  // #D8281F
+        case .green:  return Color(red: 0x1E / 255, green: 0x8A / 255, blue: 0x34 / 255)  // #1E8A34
+        case .yellow: return Color(red: 0xE2 / 255, green: 0xA4 / 255, blue: 0x00 / 255)  // #E2A400
+        }
+    }
+
+    /// Picker label — colour plus its APP-6 affiliation meaning.
+    var label: String {
+        switch self {
+        case .black:  return "Black"
+        case .blue:   return "Blue (Friendly)"
+        case .red:    return "Red (Hostile)"
+        case .green:  return "Green (Neutral)"
+        case .yellow: return "Yellow (Unknown)"
         }
     }
 }

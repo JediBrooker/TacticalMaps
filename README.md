@@ -1,23 +1,28 @@
-# TacticalMaps
+# TacMap
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![iOS](https://img.shields.io/badge/iOS-16.0%2B-blue.svg)](#)
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](#)
 [![Android](https://img.shields.io/badge/Android-API%2026%2B-green.svg)](#)
-[![iOS Build](https://github.com/JediBrooker/TacticalMaps/actions/workflows/ios.yml/badge.svg)](https://github.com/JediBrooker/TacticalMaps/actions/workflows/ios.yml)
-[![Android Build](https://github.com/JediBrooker/TacticalMaps/actions/workflows/android.yml/badge.svg)](https://github.com/JediBrooker/TacticalMaps/actions/workflows/android.yml)
+[![iOS Build](https://github.com/JediBrooker/TacMap/actions/workflows/ios.yml/badge.svg)](https://github.com/JediBrooker/TacMap/actions/workflows/ios.yml)
+[![Android Build](https://github.com/JediBrooker/TacMap/actions/workflows/android.yml/badge.svg)](https://github.com/JediBrooker/TacMap/actions/workflows/android.yml)
 
-Field-navigation prototype: tactical-style map with live MGRS, GeoPDF/calibrated-PDF
-basemaps, drawing overlays exportable as GeoJSON, and fiduciary calibration for
-any PDF that lacks proper georeferencing. iOS (SwiftUI + MapKit) and Android
-(Kotlin + Compose + Google Maps) ship from one repository.
+Field-navigation prototype: tactical-style map with live MGRS, APP-6 symbology,
+GeoPDF/calibrated-PDF basemaps, drawing overlays round-tripped as GeoJSON, and
+fiduciary calibration for any PDF that lacks proper georeferencing. iOS (SwiftUI
++ MapKit) and Android (Kotlin + Compose + Google Maps) ship from one repository.
+
+> The app's **display name is TacMap**. The Xcode project, Gradle modules,
+> bundle id (`com.tacticalmaps.app`) and package (`com.tacticalmaps`) keep the
+> original **TacticalMaps** name for continuity, so the build commands below
+> still reference `TacticalMaps`.
 
 <p align="center">
-  <img src="docs/screenshots/01-main-sf.png" width="260" alt="Main view (live location, satellite)">
+  <img src="docs/screenshots/01-main-symbols.png" width="260" alt="APP-6 unit symbols & tactical task graphics over satellite">
   &nbsp;
   <img src="docs/screenshots/02-pdf-basemap.png" width="260" alt="USGS US Topo PDF rendered as basemap">
   &nbsp;
-  <img src="docs/screenshots/06-drawing-mode.png" width="260" alt="Live drawing mode">
+  <img src="docs/screenshots/06-drawing-mode.png" width="260" alt="Drawing a multi-segment line, with undo / redo">
 </p>
 
 <details>
@@ -39,7 +44,7 @@ any PDF that lacks proper georeferencing. iOS (SwiftUI + MapKit) and Android
 
 </details>
 
-The basemap screenshot (£2) is the **USGS San Francisco North** 1:24,000 US Topo
+The middle screenshot is the **USGS San Francisco North** 1:24,000 US Topo
 quadrangle (public domain) rendered live over the satellite. Run
 `scripts/fetch_samples.sh` to drop the same PDF into `samples/` for testing.
 
@@ -62,15 +67,31 @@ quadrangle (public domain) rendered live over the satellite. Run
   centre around with your fingers. Ours overrides it so the map spins in
   place around the screen centre.
 
-### Drawing & waypoints
+### Symbology, drawing & waypoints
 
-- Drop **waypoints** with kind (camp, water, observation point, drop zone,
-  hazard) and elevation.
-- Draw **polylines, polygons, and points** — tap successive points on the
-  map, undo last vertex, finish to commit. In-progress shapes render dashed.
-- **Export everything as GeoJSON** following the [Mapbox simplestyle-spec]
+- **APP-6(C) military symbols** — compose a unit symbol from affiliation
+  (Friend / Hostile / Neutral / Unknown), echelon (Team → Division) and
+  function (Infantry, Armour, Artillery, Engineer, Recce, …), with an HQ flag.
+  Frame shape, fill colour and echelon marks follow the standard.
+- **Tactical task graphics** — the point-symbol mission-task / control-measure
+  set (Block, Breach, Ambush, Attack-by-Fire, Axis of Advance, Screen, Seize,
+  Form-Up Point, Landing Zone, …). Each supports **rotation**, independent
+  **width / height** scaling, and a **colour** — Black (default), Blue
+  (Friendly), Red (Hostile), Green (Neutral) or Yellow (Unknown).
+- **Generic markers** with a name, notes and elevation.
+- **Draw polylines, polygons, points and free-hand** — tap successive points
+  or drag to sketch, undo the last vertex, finish to commit. In-progress
+  shapes render dashed; finished shapes carry an editable stroke colour,
+  width and dash style.
+- **Layers & labels** — drawings and symbols share one layer model, so toggling
+  a layer hides both at once. Per-feature labels are off by default and toggled
+  from **☰ → Layers and Labels**.
+- **Undo / redo** for every placement, edit and delete — the system
+  `UndoManager` on iOS (shake-to-undo + ⌘Z) and a snapshot stack on Android,
+  both surfaced as on-map buttons.
+- **Import & export GeoJSON** following the [Mapbox simplestyle-spec]
   (stroke / stroke-width / fill / fill-opacity / marker-color / marker-symbol
-  with [Maki icon] names). Opens directly in **geojson.io, GitHub gists,
+  with [Maki icon] names). Round-trips through **geojson.io, GitHub gists,
   Mapbox, Felt, Leaflet, QGIS, ArcGIS, Google Earth**.
 
 [Mapbox simplestyle-spec]: https://github.com/mapbox/simplestyle-spec
@@ -250,9 +271,9 @@ The iOS build is App-Store-ready in terms of assets:
 - Step-by-step submission checklist at
   [`docs/APPSTORE_CHECKLIST.md`](docs/APPSTORE_CHECKLIST.md)
 
-It has not been submitted yet — if you do, see the checklist for the
-Apple-side steps (Developer Program enrolment, name reservation, screenshots,
-TestFlight).
+An iOS build has gone out via **TestFlight**; it has not been submitted for
+App Store review yet. If you do, see the checklist for the Apple-side steps
+(Developer Program enrolment, name reservation, screenshots, TestFlight).
 
 ---
 

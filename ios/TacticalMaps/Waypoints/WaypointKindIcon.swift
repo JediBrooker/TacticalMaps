@@ -11,6 +11,9 @@ struct WaypointKindIcon: View {
     /// Clockwise rotation in degrees. Only applied to tactical control
     /// measures (military unit symbols and SF Symbols are not rotated).
     var rotation: Double = 0
+    /// Tint for tactical task graphics. Defaults to black; the controls
+    /// card passes the waypoint's `taskColor` so the preview recolours.
+    var taskColor: TaskColor = .black
 
     var body: some View {
         if let spec = kind.militarySpec {
@@ -18,6 +21,7 @@ struct WaypointKindIcon: View {
         } else if let m = kind.controlMeasure {
             TacticalControlMeasureSymbolView(measure: m,
                                              rotation: rotation,
+                                             color: taskColor.color,
                                              size: size)
         } else {
             Image(systemName: kind.sfSymbol)
