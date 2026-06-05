@@ -58,32 +58,11 @@ internal fun VertexHandlesOverlay(
     val density = LocalDensity.current
     val sizePx = with(density) { 48.dp.roundToPx() }
 
-    /// Free-hand strokes have far too many vertices to edit one-by-one —
-    /// a handle per vertex/segment becomes an unusable spray of "+"
-    /// buttons (a dense LINE = a free-draw). Collapse to a SINGLE insert
-    /// handle at the middle of the stroke.
+    /// Free-hand strokes have far too many vertices to edit meaningfully, so
+    /// they get NO vertex handles at all — a dense LINE (> 20 points) is a
+    /// free-draw. It stays selectable/movable/deletable via the controls card;
+    /// it just isn't vertex-editable.
     if (feature.geometry == DrawingGeometry.LINE && effective.size > 20) {
-        val midIdx = effective.size / 2
-        val a = effective[midIdx - 1]
-        val b = effective[midIdx]
-        val midLat = (a.latitude + b.latitude) / 2.0
-        val midLng = (a.longitude + b.longitude) / 2.0
-        val screen = projection.toScreenLocation(LatLng(midLat, midLng))
-        VertexHandleBox(
-            centerX = screen.x,
-            centerY = screen.y,
-            sizePx = sizePx,
-            isMidpoint = true,
-            onTap = { onVertexInserted(feature.id, midIdx, midLat, midLng) },
-            onLongPress = {},
-            onDragCommit = { dxPx, dyPx ->
-                val proj = cameraPositionState.projection ?: return@VertexHandleBox
-                val moved = proj.fromScreenLocation(
-                    Point((screen.x + dxPx).roundToInt(), (screen.y + dyPx).roundToInt())
-                )
-                onVertexInserted(feature.id, midIdx, moved.latitude, moved.longitude)
-            }
-        )
         return
     }
 

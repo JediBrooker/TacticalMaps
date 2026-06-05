@@ -572,42 +572,14 @@ struct MapContainerView: UIViewRepresentable {
             if let selectedID = mapVM.selectedDrawingID,
                let shape = drawings.first(where: { $0.id == selectedID }) {
                 let coords = shape.clEffectiveCoordinates
-                // A freehand stroke is captured & stored as a polyline, but with
-                // many points — so per-vertex/per-segment handles become an
-                // unusable wall of dots. Detect it by point count (matches the
-                // Android >20 heuristic) and show just the two ENDPOINTS plus a
-                // single central "+".
+                // Free-hand strokes (captured & stored as a many-point polyline)
+                // have far too many vertices to edit meaningfully, so they get
+                // NO vertex handles — still selectable/movable/deletable via the
+                // controls card, just not vertex-editable. Detect by point count
+                // (matches the Android > 20 heuristic).
                 let isFreehand = shape.kind == .freedraw
                     || (shape.kind == .polyline && coords.count > 20)
-                if isFreehand {
-                    if coords.count >= 2 {
-                        // Draggable handle at each END of the stroke.
-                        for idx in [0, coords.count - 1] {
-                            let h = DrawingVertexHandleAnnotation(
-                                shapeID: shape.id,
-                                vertexIndex: idx,
-                                isMidpoint: false,
-                                coordinate: coords[idx]
-                            )
-                            mv.addAnnotation(h)
-                        }
-                        // One central "+" that inserts a vertex at the midpoint.
-                        let midIdx = coords.count / 2
-                        let a = coords[midIdx - 1]
-                        let b = coords[midIdx]
-                        let mid = CLLocationCoordinate2D(
-                            latitude:  (a.latitude  + b.latitude)  / 2,
-                            longitude: (a.longitude + b.longitude) / 2
-                        )
-                        let h = DrawingVertexHandleAnnotation(
-                            shapeID: shape.id,
-                            vertexIndex: midIdx,
-                            isMidpoint: true,
-                            coordinate: mid
-                        )
-                        mv.addAnnotation(h)
-                    }
-                } else if shape.kind == .polyline || shape.kind == .polygon {
+                if !isFreehand && (shape.kind == .polyline || shape.kind == .polygon) {
                     // Real vertex handles — draggable, long-press to delete.
                     for (i, c) in coords.enumerated() {
                         let h = DrawingVertexHandleAnnotation(
