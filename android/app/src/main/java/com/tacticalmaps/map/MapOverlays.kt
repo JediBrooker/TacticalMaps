@@ -493,6 +493,7 @@ internal fun PdfGroundOverlay(source: PdfMapSource) {
 internal fun WaypointMarkers(
     waypoints: List<Waypoint>,
     selectedWaypointId: String?,
+    locked: Boolean,
     onWaypointTap: (Waypoint) -> Unit,
     onWaypointMoved: (waypoint: Waypoint, lat: Double, lng: Double) -> Unit
 ) {
@@ -539,7 +540,7 @@ internal fun WaypointMarkers(
                 state = markerState,
                 icon = descriptor,
                 anchor = anchor,
-                draggable = true,
+                draggable = !locked,
                 zIndex = 2f,
                 onClick = {
                     onWaypointTap(wp)

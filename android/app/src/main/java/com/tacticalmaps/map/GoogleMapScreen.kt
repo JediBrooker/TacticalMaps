@@ -103,6 +103,7 @@ fun GoogleMapScreen(
     drawings: List<DrawingFeature> = emptyList(),
     drawingLayers: List<DrawingLayer> = emptyList(),
     draftDrawing: DrawingFeature? = null,
+    graphicsLocked: Boolean = false,
     drawingInputEnabled: Boolean = false,
     freeDrawActive: Boolean = false,
     onFreeDrawPoint: (lat: Double, lng: Double) -> Unit = { _, _ -> },
@@ -356,6 +357,7 @@ fun GoogleMapScreen(
             WaypointMarkers(
                 waypoints = visibleWaypoints,
                 selectedWaypointId = selectedWaypointId,
+                locked = graphicsLocked,
                 onWaypointTap = { wp -> currentOnMarkerTap.value(wp) },
                 onWaypointMoved = { wp, lat, lng -> currentOnWaypointMoved.value(wp, lat, lng) }
             )
@@ -406,6 +408,7 @@ fun GoogleMapScreen(
             cameraPositionState = cameraPositionState,
             drawingInputEnabled = drawingInputEnabled,
             calibrationInputEnabled = calibrationInputEnabled,
+            locked = graphicsLocked,
             dragState = currentDragState,
             onDragStateChange = { dragState = it },
             onWaypointTap = { wp -> currentOnMarkerTap.value(wp) },
@@ -416,7 +419,7 @@ fun GoogleMapScreen(
         )
 
         VertexHandlesOverlay(
-            feature = selectedDrawing.takeUnless { drawingInputEnabled },
+            feature = selectedDrawing.takeUnless { drawingInputEnabled || graphicsLocked },
             cameraPositionState = cameraPositionState,
             onVertexMoved = currentOnVertexMoved.value,
             onVertexInserted = currentOnVertexInserted.value,

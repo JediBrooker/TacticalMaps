@@ -149,6 +149,7 @@ internal fun MapItemTouchOverlay(
     cameraPositionState: CameraPositionState,
     drawingInputEnabled: Boolean,
     calibrationInputEnabled: Boolean,
+    locked: Boolean,
     dragState: androidx.compose.runtime.State<MapItemDrag?>,
     onDragStateChange: (MapItemDrag?) -> Unit,
     onWaypointTap: (Waypoint) -> Unit,
@@ -314,7 +315,8 @@ internal fun MapItemTouchOverlay(
                             )
                             return@pointerInteropFilter true
                         }
-                        if (kotlin.math.hypot(dx, dy) > tapSlopPx &&
+                        if (!locked &&
+                            kotlin.math.hypot(dx, dy) > tapSlopPx &&
                             event.pointerCount == 1
                         ) {
                             /// CLAIM. Returning true tells Compose
