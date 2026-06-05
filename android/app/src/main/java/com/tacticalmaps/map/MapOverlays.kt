@@ -498,7 +498,7 @@ internal fun WaypointHandlesOverlay(
     val density = LocalDensity.current
 
     waypoints.forEach { wp ->
-        val rawIcon = remember(wp.kind, wp.rotation, wp.scaleX, wp.scaleY) {
+        val rawIcon = remember(wp.kind, wp.rotation, wp.scaleX, wp.scaleY, wp.taskColor) {
             SymbolIconFactory.drawableFor(context, wp)
         }
         val rawAnchor = remember(wp.kind) {
