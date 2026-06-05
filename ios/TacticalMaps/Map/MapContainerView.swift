@@ -613,7 +613,7 @@ struct MapContainerView: UIViewRepresentable {
             for w in waypoints {
                 let elev = w.elevation.map { String($0) } ?? ""
                 let notes = w.notes ?? ""
-                parts.append("w|\(w.id.uuidString)|\(w.latitude)|\(w.longitude)|\(w.kindFingerprint)|\(w.rotation)|\(w.scaleX)|\(w.scaleY)|\(w.name)|\(notes)|\(elev)")
+                parts.append("w|\(w.id.uuidString)|\(w.latitude)|\(w.longitude)|\(w.kindFingerprint)|\(w.rotation)|\(w.scaleX)|\(w.scaleY)|\(w.taskColor.rawValue)|\(w.name)|\(notes)|\(elev)")
             }
             for d in drawings {
                 // Hash every vertex so mid-shape edits (drag a single

@@ -7,6 +7,8 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
@@ -21,6 +23,7 @@ import com.tacticalmaps.waypoints.SymbolAffiliation
 import com.tacticalmaps.waypoints.SymbolEchelon
 import com.tacticalmaps.waypoints.SymbolFunction
 import com.tacticalmaps.waypoints.TacticalControlMeasure
+import com.tacticalmaps.waypoints.TaskColor
 import com.tacticalmaps.waypoints.Waypoint
 import com.tacticalmaps.waypoints.WaypointKind
 import kotlin.math.ceil
@@ -54,7 +57,8 @@ object SymbolIconFactory {
                     measure = kind.measure,
                     rotation = waypoint.rotation,
                     scaleX = waypoint.scaleX,
-                    scaleY = waypoint.scaleY
+                    scaleY = waypoint.scaleY,
+                    color = waypoint.taskColor
                 )
             }
         }
@@ -113,7 +117,7 @@ object SymbolIconFactory {
                 val rot = waypoint.rotation.roundKey(1)
                 val sx = waypoint.scaleX.roundKey(2)
                 val sy = waypoint.scaleY.roundKey(2)
-                "ctrl|$density|${kind.measure.assetName}|$rot|$sx|$sy"
+                "ctrl|$density|${kind.measure.assetName}|$rot|$sx|$sy|${waypoint.taskColor.name}"
             }
         }
     }
@@ -414,7 +418,8 @@ object SymbolIconFactory {
         measure: TacticalControlMeasure,
         rotation: Double,
         scaleX: Double,
-        scaleY: Double
+        scaleY: Double,
+        color: TaskColor = TaskColor.BLACK
     ): Bitmap {
         val density = context.resources.displayMetrics.density
         val base = 64f * density
@@ -427,9 +432,17 @@ object SymbolIconFactory {
         val cy = canvasSide / 2f
         val dest = RectF(cx - symbolW / 2f, cy - symbolH / 2f, cx + symbolW / 2f, cy + symbolH / 2f)
         val source = controlMeasureSource(context, measure)
+        // Black is the asset's native colour — skip the filter. The other
+        // colours recolour every opaque pixel (and feather the anti-aliased
+        // edges) via SRC_IN, preserving the glyph's alpha.
+        val tintPaint = if (color != TaskColor.BLACK) {
+            Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+                colorFilter = PorterDuffColorFilter(color.argb, PorterDuff.Mode.SRC_IN)
+            }
+        } else null
         canvas.save()
         canvas.rotate(rotation.toFloat(), cx, cy)
-        canvas.drawBitmap(source, null, dest, null)
+        canvas.drawBitmap(source, null, dest, tintPaint)
         canvas.restore()
         return bitmap
     }

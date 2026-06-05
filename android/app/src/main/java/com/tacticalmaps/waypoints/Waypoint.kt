@@ -35,6 +35,7 @@ data class Waypoint(
     val rotation: Double = 0.0,
     val scaleX: Double = 1.0,
     val scaleY: Double = 1.0,
+    @SerialName("task_color") val taskColor: TaskColor = TaskColor.BLACK,
     @SerialName("layer_id") val layerId: String = DEFAULT_LAYER_ID,
     @SerialName("created_at_epoch_ms") val createdAt: Long = System.currentTimeMillis()
 ) {
@@ -141,6 +142,23 @@ data class MilitarySymbolSpec(
     val function: SymbolFunction = SymbolFunction.INFANTRY,
     val isHeadquarters: Boolean = false
 )
+
+/**
+ * Colour applied to a tactical task graphic (control measure). The bundled
+ * glyphs are pure-black line art on transparent; the icon factory tints them
+ * to this colour via a SRC_IN PorterDuff filter. Black is the default; the
+ * other four follow the APP-6 affiliation palette (saturated for legibility
+ * on satellite imagery and imported PDFs — the affiliation frame fills are
+ * pastel and too pale for line art). Kept in sync with iOS's `TaskColor`.
+ */
+@Serializable
+enum class TaskColor(val displayName: String, val argb: Int) {
+    @SerialName("black") BLACK("Black", 0xFF000000.toInt()),
+    @SerialName("blue") BLUE("Blue (Friendly)", 0xFF0E5FD8.toInt()),
+    @SerialName("red") RED("Red (Hostile)", 0xFFD8281F.toInt()),
+    @SerialName("green") GREEN("Green (Neutral)", 0xFF1E8A34.toInt()),
+    @SerialName("yellow") YELLOW("Yellow (Unknown)", 0xFFE2A400.toInt())
+}
 
 @Serializable
 enum class SymbolAffiliation(val displayName: String, val fillColor: Int) {

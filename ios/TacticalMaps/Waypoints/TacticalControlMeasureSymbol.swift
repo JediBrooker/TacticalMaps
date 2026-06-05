@@ -10,6 +10,9 @@ struct TacticalControlMeasureSymbolView: View {
     let measure: TacticalControlMeasure
     /// Clockwise rotation in degrees. 0 = canonical orientation.
     var rotation: Double = 0
+    /// Tint for the glyph. The asset is template-rendered, so this
+    /// recolours the black line art. Defaults to black.
+    var color: Color = .black
     var size: CGFloat = 56
 
     var body: some View {
@@ -17,7 +20,7 @@ struct TacticalControlMeasureSymbolView: View {
             .renderingMode(.template)
             .resizable()
             .scaledToFit()
-            .foregroundStyle(.black)
+            .foregroundStyle(color)
             .frame(width: size, height: size)
             .rotationEffect(.degrees(rotation))
     }
@@ -32,21 +35,25 @@ enum TacticalControlMeasureRenderer {
     private struct Key: Hashable {
         let measure: TacticalControlMeasure
         let rotationCentideg: Int   // 0..35999, 1/100 of a degree
+        let color: TaskColor
     }
     private static var cache: [Key: UIImage] = [:]
 
     static func image(for measure: TacticalControlMeasure,
-                      rotation: Double = 0) -> UIImage? {
+                      rotation: Double = 0,
+                      color: TaskColor = .black) -> UIImage? {
         let normalized = ((rotation.truncatingRemainder(dividingBy: 360)) + 360)
             .truncatingRemainder(dividingBy: 360)
         let key = Key(
             measure: measure,
-            rotationCentideg: Int((normalized * 100).rounded())
+            rotationCentideg: Int((normalized * 100).rounded()),
+            color: color
         )
         if let cached = cache[key] { return cached }
         let view = TacticalControlMeasureSymbolView(
             measure: measure,
             rotation: normalized,
+            color: color.color,
             size: baseSize
         )
         let renderer = ImageRenderer(content: view)
