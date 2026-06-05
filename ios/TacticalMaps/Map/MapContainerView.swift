@@ -195,6 +195,9 @@ struct MapContainerView: UIViewRepresentable {
         /// active (MKOverlay grid lines render beneath the PDF image subview
         /// and would be hidden). nil on the plain-basemap path.
         var mgrsGridOverlayView: MGRSGridOverlayView?
+        /// Subview that redraws drawing/measure/in-progress vector shapes ABOVE
+        /// the PDF image (MKOverlay shapes render beneath it). nil without a PDF.
+        var pdfDrawingsView: DrawingsOverlayView?
 
         /// PDF overlay rendered as a UIImageView subview (bypasses MKOverlay
         /// because iOS 26 MapKit silently refuses to draw custom overlays on
@@ -271,9 +274,10 @@ struct MapContainerView: UIViewRepresentable {
             mapVM.mapCameraDidChange(heading: mv.camera.heading)
             mapVM.currentMetresPerPoint = metresPerPoint(in: mv)
             pdfImageView?.updateFrame(in: mv)
-            // Keep the subview grid (PDF basemap path) glued to the map every
-            // frame; no-op on the MKOverlay path.
+            // Keep the subview grid + drawings (PDF basemap path) glued to the
+            // map every frame; no-op on the MKOverlay path.
             reprojectMGRSGridOverlay()
+            reprojectPDFDrawings()
             publishOverlayState(in: mv)
         }
 
@@ -488,6 +492,49 @@ struct MapContainerView: UIViewRepresentable {
                 styleByOverlay[ObjectIdentifier(line)] = style
                 inProgressOverlayIDs.insert(ObjectIdentifier(line))
                 mv.addOverlay(line)
+            }
+
+            // The PDF basemap is a UIImageView subview ON TOP of the map, so the
+            // MKOverlay shapes above (drawings, in-progress, measure) render
+            // beneath it and vanish. While a PDF is active, re-draw those vector
+            // shapes into a subview layered ABOVE the PDF (the symbols/labels are
+            // annotations and already sit on top, so they're unaffected).
+            if pdfImageView != nil {
+                var vectors: [PDFVectorShape] = []
+                if visibility?.drawingsVisible ?? true {
+                    for shape in drawings
+                    where shape.kind == .polyline || shape.kind == .polygon || shape.kind == .freedraw {
+                        vectors.append(PDFVectorShape(
+                            coords: shape.clEffectiveCoordinates,
+                            isPolygon: shape.kind == .polygon,
+                            style: shape.style,
+                            isSelected: shape.id == mapVM.selectedDrawingID,
+                            inProgress: false))
+                    }
+                }
+                if session.isDrawing, !session.inProgressCoordinates.isEmpty {
+                    let kind = session.activeKind ?? .polyline
+                    vectors.append(PDFVectorShape(
+                        coords: session.inProgressCoordinates.map {
+                            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+                        },
+                        isPolygon: kind == .polygon,
+                        style: DrawingStyle(),
+                        isSelected: false,
+                        inProgress: true))
+                }
+                if measureSession.isActive, measureSession.points.count >= 2 {
+                    vectors.append(PDFVectorShape(
+                        coords: measureSession.points,
+                        isPolygon: false,
+                        style: DrawingStyle(strokeColorHex: "#FFA500", fillColorHex: nil,
+                                            strokeWidth: 3.0, fillOpacity: 0, dashPattern: [6, 4]),
+                        isSelected: false,
+                        inProgress: true))
+                }
+                ensurePDFDrawingsView(on: mv).update(shapes: vectors)
+            } else {
+                removePDFDrawingsView()
             }
 
             // Vertex dots: every tapped point during drawing/measuring

@@ -142,6 +142,36 @@ extension MapContainerView.Coordinator {
         }
     }
 
+    /// Create/reuse the drawings overlay and keep it ABOVE the PDF — and above
+    /// the grid subview, so drawings sit on top of the grid. MapKit's
+    /// annotation views are siblings above ours, so waypoints/labels stay on top.
+    func ensurePDFDrawingsView(on mv: MKMapView) -> DrawingsOverlayView {
+        let view = pdfDrawingsView ?? {
+            let v = DrawingsOverlayView(mapView: mv)
+            pdfDrawingsView = v
+            return v
+        }()
+        if let grid = mgrsGridOverlayView, grid.superview === mv {
+            mv.insertSubview(view, aboveSubview: grid)
+        } else if let pdf = pdfImageView, pdf.superview === mv {
+            mv.insertSubview(view, aboveSubview: pdf)
+        } else if view.superview !== mv {
+            mv.addSubview(view)
+        }
+        return view
+    }
+
+    func removePDFDrawingsView() {
+        pdfDrawingsView?.removeFromSuperview()
+        pdfDrawingsView = nil
+    }
+
+    /// Re-project the drawings subview against the current camera (no-op without
+    /// a PDF). Called on every camera change so the shapes track the map.
+    func reprojectPDFDrawings() {
+        pdfDrawingsView?.reproject()
+    }
+
     /// Forwarded into the PDFImageOverlayView; safe to call whenever —
     /// clears markers when no calibration is active.
     func syncCalibrationMarkers() {
